@@ -1,0 +1,6 @@
+{
+  "name": "MusterCommand",
+  "description": "FOSS Life-Safety Operating System for ConEdison Floor 7 Pilot, combining Offline-First Resilience with Hermes AI Memory agent.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
