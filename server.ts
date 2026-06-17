@@ -4,7 +4,8 @@ import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 
 const app = express();
-const PORT = 3000;
+// Port is configurable via env (PORT=3001 npm run dev). Defaults to 3000.
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
@@ -303,8 +304,24 @@ async function initServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`MusterCommand (Life-Safety OS) server bound to port ${PORT}`);
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log("");
+    console.log("  MusterCommand (Life-Safety OS) is running.");
+    console.log(`  ▶ Open your browser at:  http://localhost:${PORT}`);
+    console.log("");
+  });
+
+  // If the port is taken, fail loudly with a clear instruction instead of a stack trace.
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `\n  ✖ Port ${PORT} is already in use.\n` +
+          `    Either stop the other process (pkill -f "tsx server.ts")\n` +
+          `    or start on another port:  PORT=3001 npm run dev\n`,
+      );
+      process.exit(1);
+    }
+    throw err;
   });
 }
 
