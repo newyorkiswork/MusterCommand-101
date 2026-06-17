@@ -6,7 +6,23 @@ import OccupantMobile from "./components/OccupantMobile";
 import WardenTablet from "./components/WardenTablet";
 import FSDCommandCenter from "./components/FSDCommandCenter";
 import SignInGateway from "./components/SignInGateway";
-import { ShieldCheck, Eye, EyeOff, Radio, Lock, RefreshCw, AlertOctagon, Activity, Grid, Maximize2, Minimize2, Smartphone, Tablet, Monitor, LogOut } from "lucide-react";
+import {
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  Radio,
+  Lock,
+  RefreshCw,
+  AlertOctagon,
+  Activity,
+  Grid,
+  Maximize2,
+  Minimize2,
+  Smartphone,
+  Tablet,
+  Monitor,
+  LogOut,
+} from "lucide-react";
 
 export default function App() {
   // Occupants roster (Tokenized at Rest)
@@ -15,57 +31,72 @@ export default function App() {
   const [ledger, setLedger] = useState<LedgerBlock[]>(SEED_LEDGER);
 
   // View mode switcher: ALL (Split screen), OCCUPANT, WARDEN, FSD
-  const [viewMode, setViewMode] = useState<"ALL" | "OCCUPANT" | "WARDEN" | "FSD">("ALL");
+  const [viewMode, setViewMode] = useState<
+    "ALL" | "OCCUPANT" | "WARDEN" | "FSD"
+  >("ALL");
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authUser, setAuthUser] = useState<any>(null);
-  
+
   // Incident Master Operations
   const [isBlackout, setIsBlackout] = useState(false);
   const [stairBBlocked, setStairBBlocked] = useState(false);
   const [isLedgerTampered, setIsLedgerTampered] = useState(false);
-  
+
   // NYC F-89 Emergency Broadcast Directive State
-  const [activeDirective, setActiveDirective] = useState<string>("Phase 1 Evacuation: NE Office Fire hazard detected. F-58 Wardens sweep assigned quadrants. ARA occupants stage at designated rescue areas. Reroute SW occupants via Stair A.");
+  const [activeDirective, setActiveDirective] = useState<string>(
+    "Phase 1 Evacuation: NE Office Fire hazard detected. F-58 Wardens sweep assigned quadrants. ARA occupants stage at designated rescue areas. Reroute SW occupants via Stair A.",
+  );
 
   const handleDispatchDirective = async (newDirective: string) => {
     setActiveDirective(newDirective);
-    logEvent(`[F-89 FLSD Dispatch] Broadcasted new protocol: "${newDirective}"`);
-    
+    logEvent(
+      `[F-89 FLSD Dispatch] Broadcasted new protocol: "${newDirective}"`,
+    );
+
     // Log directive to the cryptographic ledger chain
     const lastBlock = ledger[ledger.length - 1];
-    const newBlock = await createNextBlock(lastBlock, ledger.length, `FSD BROADCAST DIRECTIVE: ${newDirective}`);
-    setLedger(prev => [...prev, newBlock]);
+    const newBlock = await createNextBlock(
+      lastBlock,
+      ledger.length,
+      `FSD BROADCAST DIRECTIVE: ${newDirective}`,
+    );
+    setLedger((prev) => [...prev, newBlock]);
   };
-  
+
   // Ledger chain verification state
-  const [ledgerIntegrity, setLedgerIntegrity] = useState<{ verified: boolean; auditLogs: string[] }>({
+  const [ledgerIntegrity, setLedgerIntegrity] = useState<{
+    verified: boolean;
+    auditLogs: string[];
+  }>({
     verified: true,
-    auditLogs: ["Roster chain intact."]
+    auditLogs: ["Roster chain intact."],
   });
 
   // Mesh queues (caches updates during blackout to sync later)
-  const [meshQueue, setMeshQueue] = useState<Array<{
-    id: string;
-    status: Occupant["status"];
-    zone?: string;
-    note?: string;
-    fallDetected?: boolean;
-    timestamp: string;
-    hmacSignature: string;
-  }>>([]);
+  const [meshQueue, setMeshQueue] = useState<
+    Array<{
+      id: string;
+      status: Occupant["status"];
+      zone?: string;
+      note?: string;
+      fallDetected?: boolean;
+      timestamp: string;
+      hmacSignature: string;
+    }>
+  >([]);
 
   // Dynamic system events log console represented at bottom of screen
   const [systemLogs, setSystemLogs] = useState<string[]>([
     "[System Initialization] MusterCommand life safety database successfully bootstrapped.",
     `[Compliance Log] Sandbox active simulating Floor 7 Pilot coordinates at 4 Irving Plaza.`,
-    "[Hash Tokenizer] Dynamic 5-Layer Defense encryption keys rotational loop active."
+    "[Hash Tokenizer] Dynamic 5-Layer Defense encryption keys rotational loop active.",
   ]);
 
   const logEvent = (msg: string) => {
     const ts = new Date().toLocaleTimeString();
-    setSystemLogs(prev => [`[${ts}] ${msg}`, ...prev.slice(0, 31)]);
+    setSystemLogs((prev) => [`[${ts}] ${msg}`, ...prev.slice(0, 31)]);
   };
 
   // Cryptographic Ledger chain verifier (Section 5 Layer 4)
@@ -81,14 +112,18 @@ export default function App() {
 
       if (computedHash !== b.hash) {
         isValid = false;
-        errors.push(`Block #${i} tampered! Computed hash: ${computedHash.substring(0, 12)}..., stored: ${b.hash.substring(0, 12)}...`);
+        errors.push(
+          `Block #${i} tampered! Computed hash: ${computedHash.substring(0, 12)}..., stored: ${b.hash.substring(0, 12)}...`,
+        );
         break; // break early on mismatch
       }
 
       if (i > 0) {
         if (b.prevHash !== blocks[i - 1].hash) {
           isValid = false;
-          errors.push(`Chain broken at Block #${i}. prevHash link disconnected.`);
+          errors.push(
+            `Chain broken at Block #${i}. prevHash link disconnected.`,
+          );
           break;
         }
       }
@@ -96,7 +131,12 @@ export default function App() {
 
     setLedgerIntegrity({
       verified: isValid,
-      auditLogs: errors.length > 0 ? errors : ["Ledger chain verified via SHA-256. Cryptographic integrity certified."]
+      auditLogs:
+        errors.length > 0
+          ? errors
+          : [
+              "Ledger chain verified via SHA-256. Cryptographic integrity certified.",
+            ],
     });
   };
 
@@ -108,29 +148,38 @@ export default function App() {
   // Sync mesh queue automatically when network comes back online
   useEffect(() => {
     if (!isBlackout && meshQueue.length > 0) {
-      logEvent(`Cloud coverage restored! Syncing ${meshQueue.length} queued HMAC BLE packets securely to centralized Firestore ledger...`);
-      
+      logEvent(
+        `Cloud coverage restored! Syncing ${meshQueue.length} queued HMAC BLE packets securely to centralized Firestore ledger...`,
+      );
+
       const processQueue = async () => {
         let currentLedgerState = [...ledger];
         let currentOccupantsState = [...occupants];
 
         for (const item of meshQueue) {
           // Update status in central roster
-          currentOccupantsState = currentOccupantsState.map(o => o.id === item.id ? {
-            ...o,
-            status: item.status,
-            musterZone: item.zone as any,
-            alertNote: sanitizeText(item.note || ""),
-            fallDetected: item.fallDetected,
-            lastSeen: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          } : o);
+          currentOccupantsState = currentOccupantsState.map((o) =>
+            o.id === item.id
+              ? {
+                  ...o,
+                  status: item.status,
+                  musterZone: item.zone as any,
+                  alertNote: sanitizeText(item.note || ""),
+                  fallDetected: item.fallDetected,
+                  lastSeen: new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                }
+              : o,
+          );
 
           // Append check-in log to chain
           const lastBlock = currentLedgerState[currentLedgerState.length - 1];
           const newBlock = await createNextBlock(
             lastBlock,
             currentLedgerState.length,
-            `Mesh Synced Block: token ${item.id} logged status ${item.status}. Zone: ${item.zone || "Zone A"}. HMAC verified: ${item.hmacSignature.substring(0, 12)}`
+            `Mesh Synced Block: token ${item.id} logged status ${item.status}. Zone: ${item.zone || "Zone A"}. HMAC verified: ${item.hmacSignature.substring(0, 12)}`,
           );
           currentLedgerState.push(newBlock);
         }
@@ -138,7 +187,9 @@ export default function App() {
         setOccupants(currentOccupantsState);
         setLedger(currentLedgerState);
         setMeshQueue([]);
-        logEvent(`P2P Sync successful. All cached operations incorporated into cryptographic ledger.`);
+        logEvent(
+          `P2P Sync successful. All cached operations incorporated into cryptographic ledger.`,
+        );
       };
 
       processQueue();
@@ -151,51 +202,74 @@ export default function App() {
     status: Occupant["status"],
     zone?: string,
     note?: string,
-    fallDetected?: boolean
+    fallDetected?: boolean,
   ) => {
-    const timestampString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timestampString = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     if (isBlackout) {
       // Offline Mesh Mode: HMAC Packet verification
-      const rawText = id + status + (zone || "") + (note || "") + String(fallDetected);
-      const hmacSignature = await clientSHA256(rawText + "BT_SECURE_HMAC_SECRET_KEY");
-      
-      setMeshQueue(prev => [...prev, {
-        id,
-        status,
-        zone,
-        note,
-        fallDetected,
-        timestamp: timestampString,
-        hmacSignature
-      }]);
+      const rawText =
+        id + status + (zone || "") + (note || "") + String(fallDetected);
+      const hmacSignature = await clientSHA256(
+        rawText + "BT_SECURE_HMAC_SECRET_KEY",
+      );
 
-      setOccupants(prev => prev.map(o => o.id === id ? {
-        ...o,
-        status,
-        musterZone: zone as any,
-        alertNote: note,
-        fallDetected,
-        lastSeen: timestampString
-      } : o));
+      setMeshQueue((prev) => [
+        ...prev,
+        {
+          id,
+          status,
+          zone,
+          note,
+          fallDetected,
+          timestamp: timestampString,
+          hmacSignature,
+        },
+      ]);
 
-      logEvent(`Offline. HMAC packet signed [${hmacSignature.substring(0, 8)}] & enqueued for token ${id}.`);
+      setOccupants((prev) =>
+        prev.map((o) =>
+          o.id === id
+            ? {
+                ...o,
+                status,
+                musterZone: zone as any,
+                alertNote: note,
+                fallDetected,
+                lastSeen: timestampString,
+              }
+            : o,
+        ),
+      );
+
+      logEvent(
+        `Offline. HMAC packet signed [${hmacSignature.substring(0, 8)}] & enqueued for token ${id}.`,
+      );
     } else {
       // Standard Online Flow: Write direct block onto Ledger Chain (Section 2/5)
-      setOccupants(prev => prev.map(o => o.id === id ? {
-        ...o,
-        status,
-        musterZone: zone as any,
-        alertNote: note,
-        fallDetected,
-        lastSeen: timestampString
-      } : o));
+      setOccupants((prev) =>
+        prev.map((o) =>
+          o.id === id
+            ? {
+                ...o,
+                status,
+                musterZone: zone as any,
+                alertNote: note,
+                fallDetected,
+                lastSeen: timestampString,
+              }
+            : o,
+        ),
+      );
 
       const lastBlock = ledger[ledger.length - 1];
       const logMsg = `Security Check-in: token ${id} status: ${status}. Zone: ${zone || "Zone A"}. note: "${note || "none"}".`;
       const newBlock = await createNextBlock(lastBlock, ledger.length, logMsg);
-      
-      setLedger(prev => [...prev, newBlock]);
+
+      setLedger((prev) => [...prev, newBlock]);
       logEvent(`Online. Added hash Block #${newBlock.index} for token ${id}.`);
     }
   };
@@ -203,11 +277,20 @@ export default function App() {
   // Malicious ledger tampering (Section 8.3 & Section 5 compliance Demo)
   const tamperLedgerChain = () => {
     setIsLedgerTampered(true);
-    setLedger(prev => prev.map(b => b.index === 1 ? {
-      ...b,
-      event: "MALICIOUS TAMPER: Token usr_a7f8c9d1 changed check-in state parameters without key."
-    } : b));
-    logEvent("⚠️ WARNING: Local database altered maliciously. Block #1 event parameters compromised.");
+    setLedger((prev) =>
+      prev.map((b) =>
+        b.index === 1
+          ? {
+              ...b,
+              event:
+                "MALICIOUS TAMPER: Token usr_a7f8c9d1 changed check-in state parameters without key.",
+            }
+          : b,
+      ),
+    );
+    logEvent(
+      "⚠️ WARNING: Local database altered maliciously. Block #1 event parameters compromised.",
+    );
   };
 
   // Restore chain / arrest tamper
@@ -215,7 +298,9 @@ export default function App() {
     setIsLedgerTampered(false);
     // Fully restore pristine seed ledger checks
     setLedger(SEED_LEDGER);
-    logEvent("🔐 Security Sync active. Centralised Vault cryptographic records pulled over TLS 1.3. Tamper arrested.");
+    logEvent(
+      "🔐 Security Sync active. Centralised Vault cryptographic records pulled over TLS 1.3. Tamper arrested.",
+    );
   };
 
   // Reset/Declare Clear (Section 8.3 wireframe action)
@@ -225,24 +310,35 @@ export default function App() {
     setMeshQueue([]);
     setStairBBlocked(false);
     setIsLedgerTampered(false);
-    setActiveDirective("Phase 1 Evacuation: NE Office Fire hazard detected. F-58 Wardens sweep assigned quadrants. Reroute SW occupants via Stair A.");
-    logEvent("🟢 Fire safety declared CLEAR. Drill successfully closed. Metrics archived per OSHA 1910.38(e).");
+    setActiveDirective(
+      "Phase 1 Evacuation: NE Office Fire hazard detected. F-58 Wardens sweep assigned quadrants. Reroute SW occupants via Stair A.",
+    );
+    logEvent(
+      "🟢 Fire safety declared CLEAR. Drill successfully closed. Metrics archived per OSHA 1910.38(e).",
+    );
   };
 
   const handleAuthenticated = (profile: any) => {
     setAuthUser(profile);
     setIsAuthenticated(true);
-    
-    // Auto-route based on vault role
-    if (profile.role.includes("FSD")) {
+
+    // Auto-route based on vault role (server returns e.g. "F-89 Fire Safety Director")
+    const role = String(profile.role || "");
+    if (
+      role.includes("FSD") ||
+      role.includes("Fire Safety Director") ||
+      role.includes("F-89")
+    ) {
       setViewMode("FSD");
-    } else if (profile.role.includes("Warden")) {
+    } else if (role.includes("Warden") || role.includes("F-58")) {
       setViewMode("WARDEN");
     } else {
       setViewMode("OCCUPANT");
     }
-    
-    logEvent(`🔐 Secure Login: ${profile.name} (${profile.role}) authenticated successfully via Vault JIT decryption.`);
+
+    logEvent(
+      `🔐 Secure Login: ${profile.name} (${profile.role}) authenticated successfully via Vault JIT decryption.`,
+    );
   };
 
   if (!isAuthenticated) {
@@ -251,11 +347,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
-      
       {/* Master Pilot Header banner */}
       <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-30 shadow-lg">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          
           <div>
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-orange-600/10 border border-orange-500/20 text-orange-500">
@@ -269,7 +363,8 @@ export default function App() {
                   </span>
                 </h1>
                 <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                  ConEdison Headcount Operating System • FOSS Dockerized Pilot Platform Model 9.0
+                  ConEdison Headcount Operating System • FOSS Dockerized Pilot
+                  Platform Model 9.0
                 </p>
               </div>
             </div>
@@ -277,21 +372,26 @@ export default function App() {
 
           {/* Master Controller Dashboard Toggles */}
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            
             {/* Blackout toggle */}
             <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-sm w-full sm:w-auto">
               <span className="text-slate-400 font-mono text-[10px] uppercase tracking-wider pl-1.5 flex items-center gap-1">
-                <span className={`w-2 h-2 rounded-full ${isBlackout ? "bg-yellow-500 animate-pulse" : "bg-emerald-500"}`} />
+                <span
+                  className={`w-2 h-2 rounded-full ${isBlackout ? "bg-yellow-500 animate-pulse" : "bg-emerald-500"}`}
+                />
                 <span>Simulation Mesh Blackout</span>
               </span>
               <button
                 onClick={() => {
                   setIsBlackout(!isBlackout);
-                  logEvent(isBlackout ? "Online sync restored. Defaulting 5G/Wi-Fi router links." : "BLACKOUT TRIGGERED. Defaulting communications safely to local BLE Mesh.");
+                  logEvent(
+                    isBlackout
+                      ? "Online sync restored. Defaulting 5G/Wi-Fi router links."
+                      : "BLACKOUT TRIGGERED. Defaulting communications safely to local BLE Mesh.",
+                  );
                 }}
                 className={`ml-2 px-3 py-1 rounded font-mono font-bold text-[10px] transition-all uppercase ${
-                  isBlackout 
-                    ? "bg-yellow-600 text-slate-950" 
+                  isBlackout
+                    ? "bg-yellow-600 text-slate-950"
                     : "bg-slate-800 text-slate-400 hover:text-white"
                 }`}
               >
@@ -317,9 +417,7 @@ export default function App() {
               <LogOut size={14} />
               <span>LOGOUT</span>
             </button>
-
           </div>
-
         </div>
       </header>
 
@@ -327,15 +425,21 @@ export default function App() {
       <div className="bg-slate-900/85 border-b border-slate-800/80 py-3 px-4 sticky top-[73px] z-20 backdrop-blur-md select-none">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm font-mono">
           <div className="flex items-center gap-2 text-slate-400">
-            <span className="text-amber-500 font-bold">👁️ SELECT PERSPECTIVE:</span>
-            <span className="hidden md:inline">Click any option or card header below to focus full screen:</span>
+            <span className="text-amber-500 font-bold">
+              👁️ SELECT PERSPECTIVE:
+            </span>
+            <span className="hidden md:inline">
+              Click any option or card header below to focus full screen:
+            </span>
           </div>
-          
+
           <div className="bg-slate-950 p-1.5 rounded-xl border border-slate-800 flex items-center gap-1 w-full sm:w-auto overflow-x-auto no-scrollbar">
             <button
               onClick={() => {
                 setViewMode("ALL");
-                logEvent("Switched View Layout to: Multi-View Split Desk Grid.");
+                logEvent(
+                  "Switched View Layout to: Multi-View Split Desk Grid.",
+                );
               }}
               className={`px-3 py-1.5 rounded-lg font-bold text-[9.5px] tracking-wider transition-all uppercase flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 viewMode === "ALL"
@@ -350,7 +454,9 @@ export default function App() {
             <button
               onClick={() => {
                 setViewMode("OCCUPANT");
-                logEvent("Maximized viewpoint to View A: Occupant Handheld Phone.");
+                logEvent(
+                  "Maximized viewpoint to View A: Occupant Handheld Phone.",
+                );
               }}
               className={`px-3 py-1.5 rounded-lg font-bold text-[9.5px] tracking-wider transition-all uppercase flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 viewMode === "OCCUPANT"
@@ -380,7 +486,9 @@ export default function App() {
             <button
               onClick={() => {
                 setViewMode("FSD");
-                logEvent("Maximized viewpoint to View C: Command Station Deck.");
+                logEvent(
+                  "Maximized viewpoint to View C: Command Station Deck.",
+                );
               }}
               className={`px-3 py-1.5 rounded-lg font-bold text-[9.5px] tracking-wider transition-all uppercase flex items-center gap-1.5 cursor-pointer shrink-0 ${
                 viewMode === "FSD"
@@ -398,24 +506,29 @@ export default function App() {
       {/* Roster alerts and Blackout warning */}
       {isBlackout && (
         <div className="bg-yellow-905 border-b border-yellow-800 text-yellow-500 p-2.5 text-center text-[10px] font-mono leading-relaxed tracking-wider animate-pulse font-semibold">
-          ⚠️ BLACKOUT ACTIVE: ALL SIGNALS FALL BACK SATELLITE FREE TO BLE MESH LOCAL CRYPTOGRAPHIC TRANSACTIONS.
+          ⚠️ BLACKOUT ACTIVE: ALL SIGNALS FALL BACK SATELLITE FREE TO BLE MESH
+          LOCAL CRYPTOGRAPHIC TRANSACTIONS.
         </div>
       )}
 
       {/* Main Grid Viewport holding Occupant, Warden and FSD views altogether */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
-        
         {/* The Tri-Panel grid alignment */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
           {/* 1. OCCUPANT (Phone View) */}
           {(viewMode === "ALL" || viewMode === "OCCUPANT") && (
-            <section className={`${viewMode === "OCCUPANT" ? "col-span-12 max-w-sm md:max-w-md mx-auto w-full" : "lg:col-span-3"} flex flex-col gap-2 transition-all duration-300`}>
-              <div 
+            <section
+              className={`${viewMode === "OCCUPANT" ? "col-span-12 max-w-sm md:max-w-md mx-auto w-full" : "lg:col-span-3"} flex flex-col gap-2 transition-all duration-300`}
+            >
+              <div
                 onClick={() => {
                   const next = viewMode === "OCCUPANT" ? "ALL" : "OCCUPANT";
                   setViewMode(next);
-                  logEvent(next === "ALL" ? "Returned to Split Desk." : "Maximized View A: Occupant Handheld.");
+                  logEvent(
+                    next === "ALL"
+                      ? "Returned to Split Desk."
+                      : "Maximized View A: Occupant Handheld.",
+                  );
                 }}
                 className="flex items-center justify-between px-2.5 bg-slate-900 border border-slate-800 p-1.5 rounded-xl font-mono text-[9px] text-slate-400 uppercase tracking-widest mb-1 select-none cursor-pointer hover:bg-slate-850 hover:text-white transition-all group"
               >
@@ -431,14 +544,20 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      <Maximize2 size={9} className="group-hover:scale-110 transition-transform" />
+                      <Maximize2
+                        size={9}
+                        className="group-hover:scale-110 transition-transform"
+                      />
                       <span>PRESS & ENTER</span>
                     </>
                   )}
                 </div>
               </div>
               <OccupantMobile
-                occupant={occupants[2]} // Alice Smith
+                // Alice Smith (usr_b3c7d6e5) — the occupant the Warden tablet QR scanner targets by default
+                occupant={
+                  occupants.find((o) => o.id === "usr_b3c7d6e5") || occupants[0]
+                }
                 isBlackout={isBlackout}
                 onUpdateStatus={updateOccupantStatus}
                 stairBBlocked={stairBBlocked}
@@ -449,12 +568,18 @@ export default function App() {
 
           {/* 2. WARDEN (Tablet View) */}
           {(viewMode === "ALL" || viewMode === "WARDEN") && (
-            <section className={`${viewMode === "WARDEN" ? "col-span-full" : "lg:col-span-4"} flex flex-col gap-2 transition-all duration-300`}>
-              <div 
+            <section
+              className={`${viewMode === "WARDEN" ? "col-span-full" : "lg:col-span-4"} flex flex-col gap-2 transition-all duration-300`}
+            >
+              <div
                 onClick={() => {
                   const next = viewMode === "WARDEN" ? "ALL" : "WARDEN";
                   setViewMode(next);
-                  logEvent(next === "ALL" ? "Returned to Split Desk." : "Maximized View B: Warden Tablet.");
+                  logEvent(
+                    next === "ALL"
+                      ? "Returned to Split Desk."
+                      : "Maximized View B: Warden Tablet.",
+                  );
                 }}
                 className="flex items-center justify-between px-2.5 bg-slate-900 border border-slate-800 p-1.5 rounded-xl font-mono text-[9px] text-slate-400 uppercase tracking-widest mb-1 select-none cursor-pointer hover:bg-slate-850 hover:text-white transition-all group"
               >
@@ -470,7 +595,10 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      <Maximize2 size={9} className="group-hover:scale-110 transition-transform" />
+                      <Maximize2
+                        size={9}
+                        className="group-hover:scale-110 transition-transform"
+                      />
                       <span>PRESS & ENTER</span>
                     </>
                   )}
@@ -488,12 +616,18 @@ export default function App() {
 
           {/* 3. FSD (Desktop command) */}
           {(viewMode === "ALL" || viewMode === "FSD") && (
-            <section className={`${viewMode === "FSD" ? "col-span-full" : "lg:col-span-5"} flex flex-col gap-2 transition-all duration-300`}>
-              <div 
+            <section
+              className={`${viewMode === "FSD" ? "col-span-full" : "lg:col-span-5"} flex flex-col gap-2 transition-all duration-300`}
+            >
+              <div
                 onClick={() => {
                   const next = viewMode === "FSD" ? "ALL" : "FSD";
                   setViewMode(next);
-                  logEvent(next === "ALL" ? "Returned to Split Desk." : "Maximized View C: Command Station Deck.");
+                  logEvent(
+                    next === "ALL"
+                      ? "Returned to Split Desk."
+                      : "Maximized View C: Command Station Deck.",
+                  );
                 }}
                 className="flex items-center justify-between px-2.5 bg-slate-900 border border-slate-800 p-1.5 rounded-xl font-mono text-[9px] text-slate-400 uppercase tracking-widest mb-1 select-none cursor-pointer hover:bg-slate-850 hover:text-white transition-all group"
               >
@@ -509,7 +643,10 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      <Maximize2 size={9} className="group-hover:scale-110 transition-transform" />
+                      <Maximize2
+                        size={9}
+                        className="group-hover:scale-110 transition-transform"
+                      />
                       <span>PRESS & ENTER</span>
                     </>
                   )}
@@ -524,7 +661,11 @@ export default function App() {
                 stairBBlocked={stairBBlocked}
                 onToggleStairB={() => {
                   setStairBBlocked(!stairBBlocked);
-                  logEvent(stairBBlocked ? "Stair B blockage cleared. Wardens reporting free passage." : "Stair B blockage logged near NW landing! Bluetooth rerouting plan dispatched.");
+                  logEvent(
+                    stairBBlocked
+                      ? "Stair B blockage cleared. Wardens reporting free passage."
+                      : "Stair B blockage logged near NW landing! Bluetooth rerouting plan dispatched.",
+                  );
                 }}
                 onTamperLedger={tamperLedgerChain}
                 onResetLedger={resyncLedgerChain}
@@ -535,32 +676,44 @@ export default function App() {
               />
             </section>
           )}
-
         </div>
 
         {/* Real-time systems logs terminal under the dashboard grids */}
         <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
           <div className="flex justify-between items-center pb-2.5 border-b border-slate-900 mb-3 text-sm font-mono">
-            <span className="text-slate-400 font-bold uppercase tracking-widest text-[9.5px]">SYSTEMS LIFE-SAFETY LOGS CONSOLE</span>
-            <span className="text-slate-500 text-[9px]">Continuous Cryptographic Audit Thread</span>
+            <span className="text-slate-400 font-bold uppercase tracking-widest text-[9.5px]">
+              SYSTEMS LIFE-SAFETY LOGS CONSOLE
+            </span>
+            <span className="text-slate-500 text-[9px]">
+              Continuous Cryptographic Audit Thread
+            </span>
           </div>
           <div className="bg-black/40 rounded-xl max-h-[140px] overflow-y-auto p-3 font-mono text-[10px] text-slate-350 space-y-1 pr-1 border border-slate-900 no-scrollbar">
             {systemLogs.map((log, index) => (
               <div key={index} className="flex gap-2">
                 <span className="text-slate-600 select-none">&gt;</span>
-                <span className={log.includes("WARNING") ? "text-red-400 font-bold animate-pulse" : ""}>{log}</span>
+                <span
+                  className={
+                    log.includes("WARNING")
+                      ? "text-red-400 font-bold animate-pulse"
+                      : ""
+                  }
+                >
+                  {log}
+                </span>
               </div>
             ))}
           </div>
         </div>
-
       </main>
 
       {/* Humble, literal human copyright stamp of the dashboard deck */}
       <footer className="bg-slate-950 border-t border-slate-900 text-center py-4 text-[10px] text-slate-500 font-mono">
-        <p>MusterCommand v9.0 • Free and Open Source (FOSS) • Sandboxed Parity Deployed over Cloud Run Platform</p>
+        <p>
+          MusterCommand v9.0 • Free and Open Source (FOSS) • Sandboxed Parity
+          Deployed over Cloud Run Platform
+        </p>
       </footer>
-
     </div>
   );
 }

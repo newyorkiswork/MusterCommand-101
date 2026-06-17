@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle, AlertTriangle, Play, HelpCircle, FileText, Send, Sparkles, RefreshCw, Layers, ShieldCheck, Database, Flame, Clock, Trash2, ShieldX, ChevronLeft, ChevronRight, MapPin, Unlock } from "lucide-react";
+import { CheckCircle, AlertTriangle, Play, HelpCircle, FileText, Send, Sparkles, RefreshCw, Layers, ShieldCheck, Database, Flame, Clock, Trash2, ShieldX, ChevronLeft, ChevronRight, MapPin, Unlock, Accessibility, Armchair } from "lucide-react";
 import { Occupant, LedgerBlock, DrillHistoryItem } from "../types";
 import FloorMap from "./FloorMap";
 
@@ -339,6 +339,19 @@ MusterCommand OS Integration Engine
     activeLocatorPage * PAGE_SIZE
   );
 
+  // Area of Rescue Assistance (ARA) — mobility-impaired / evac-chair occupants.
+  // Surfaced as a dedicated board so FDNY immediately knows who awaits assisted evacuation.
+  const araList = [...occupants]
+    .filter(o => o.mobilityImpaired || o.status === "ARA_STAGING")
+    .sort((a, b) => {
+      // Not-yet-staged (still in transit) first so they stay top-of-mind.
+      const aStaged = (a.isAtARA || a.status === "ARA_STAGING") ? 1 : 0;
+      const bStaged = (b.isAtARA || b.status === "ARA_STAGING") ? 1 : 0;
+      if (aStaged !== bStaged) return aStaged - bStaged;
+      return a.id.localeCompare(b.id);
+    });
+  const araStaged = araList.filter(o => o.isAtARA || o.status === "ARA_STAGING").length;
+
   return (
     <div className="w-full bg-slate-900 border border-slate-700/80 rounded-3xl p-5 shadow-2xl flex flex-col h-[1440px] xl:h-[710px] text-slate-100 overflow-hidden">
       
@@ -398,6 +411,57 @@ MusterCommand OS Integration Engine
           </button>
         </div>
       </div>
+
+      {/* AREA OF RESCUE ASSISTANCE (ARA) — Evac-Chair Priority Board (always visible to FSD) */}
+      {araList.length > 0 && (
+        <div className="shrink-0 mb-4 bg-blue-950/40 border border-blue-800/60 rounded-2xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Accessibility size={16} className="text-blue-400" />
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-300">
+                Area of Rescue Assistance — Evac-Chair List
+              </span>
+              <span className="text-[9px] bg-blue-900/60 text-blue-200 px-2 py-0.5 rounded-full font-mono">
+                {araStaged}/{araList.length} STAGED
+              </span>
+            </div>
+            <span className="text-[9px] font-mono text-blue-400/80 uppercase tracking-wider">
+              FDNY assisted-evac priority
+            </span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {araList.map(occ => {
+              const staged = occ.isAtARA || occ.status === "ARA_STAGING";
+              return (
+                <button
+                  type="button"
+                  key={occ.id}
+                  onClick={() => handleUnsealFsd(occ.id)}
+                  className={`shrink-0 text-left rounded-xl border p-2 min-w-[155px] transition-all active:scale-95 cursor-pointer ${
+                    staged
+                      ? "bg-blue-950/60 border-blue-700/70 hover:border-blue-500"
+                      : "bg-red-950/40 border-red-700/70 hover:border-red-500 animate-pulse"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Armchair size={12} className={staged ? "text-blue-300" : "text-red-300"} />
+                    <span className="text-[11px] font-mono font-bold text-slate-100">{occ.badgeId}</span>
+                    <span className="text-[8px] font-mono text-slate-400">{occ.quadrant}</span>
+                  </div>
+                  <div className={`text-[9px] font-bold mt-0.5 ${staged ? "text-blue-300" : "text-red-300"}`}>
+                    {staged ? "✓ STAGED AT ARA" : "⚠ AWAITING — NOT AT ARA"}
+                  </div>
+                  {occ.alertNote && (
+                    <div className="text-[8px] text-slate-400 mt-0.5 truncate max-w-[145px]">
+                      {occ.alertNote}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Main Panel Content (Grid layout) */}
       <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-5 overflow-hidden">
