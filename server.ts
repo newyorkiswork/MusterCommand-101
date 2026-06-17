@@ -179,10 +179,16 @@ const SYNTH_DEPARTMENTS: Record<string, string> = {
   SE: "SE IT Infrastructure",
 };
 
+// Must match generateRoster(288) in src/data.ts. Tokens outside this range do
+// not correspond to a real occupant and must still 404, exactly like a
+// completely unknown token.
+const GENERATED_ROSTER_SIZE = 288;
+
 function synthesizeOccupant(token: string) {
   const match = /^usr_gen(\d{6})$/.exec(token);
   if (!match) return null;
   const i = parseInt(match[1], 10);
+  if (i < 0 || i >= GENERATED_ROSTER_SIZE) return null;
   const quadrant = FILLER_QUADRANTS[i % FILLER_QUADRANTS.length];
   const first = SYNTH_FIRST_NAMES[i % SYNTH_FIRST_NAMES.length];
   const last = SYNTH_LAST_NAMES[(i * 7) % SYNTH_LAST_NAMES.length];
