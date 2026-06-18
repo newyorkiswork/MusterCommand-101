@@ -212,8 +212,8 @@ export default function FloorMap({
         <>
           {/* Building Plan — modeled on the FDNY "Get to Know Your Building" sheet */}
           <div
-            className={`flex-1 bg-slate-950 rounded-xl border border-slate-850 p-3 relative overflow-hidden ${
-              isExpanded ? "min-h-[560px]" : "min-h-[320px]"
+            className={`w-full bg-slate-950 rounded-xl border border-slate-850 p-2 relative overflow-hidden ${
+              isExpanded ? "aspect-[3/2]" : "aspect-[4/3]"
             }`}
           >
             {/* Quadrant status pills (tap to filter) */}
@@ -927,10 +927,10 @@ export default function FloorMap({
                     />
                     <image
                       href="/building-plan.png"
-                      x="12"
-                      y="10"
-                      width="376"
-                      height="280"
+                      x="0"
+                      y="0"
+                      width="400"
+                      height="300"
                       preserveAspectRatio="xMidYMid meet"
                       style={{ pointerEvents: "none" }}
                       onError={() => setPlanImgError(true)}
@@ -1121,56 +1121,6 @@ export default function FloorMap({
           </div>
         </div>
       )}
-
-      {/* Quick Stats Bar */}
-      <div className="mt-2 grid grid-cols-4 gap-1.5 shrink-0">
-        {quadrants.map((quad) => {
-          const stats = getQuadrantStats(quad);
-          const completionRate =
-            stats.total > 0
-              ? Math.round((stats.accounted / stats.total) * 100)
-              : 0;
-
-          return (
-            <button
-              type="button"
-              key={quad}
-              onClick={() => onQuadrantClick && onQuadrantClick(quad)}
-              className={`p-1.5 rounded-lg border transition-all text-left ${
-                selectedQuadrant === quad
-                  ? "bg-amber-950/40 border-amber-700"
-                  : "bg-slate-900/40 border-slate-800 hover:bg-slate-850 hover:border-slate-700"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[9px] font-mono font-bold text-slate-300">
-                  {quad}
-                </span>
-                <span
-                  className={`text-[8px] font-bold ${
-                    completionRate === 100
-                      ? "text-emerald-400"
-                      : completionRate >= 75
-                        ? "text-amber-400"
-                        : "text-red-400"
-                  }`}
-                >
-                  {completionRate}%
-                </span>
-              </div>
-              <div className="text-[7.5px] text-slate-500 font-mono">
-                {stats.accounted}/{stats.total} safe
-              </div>
-              {(stats.medical > 0 || stats.ara > 0) && (
-                <div className="text-[7px] text-red-400 font-bold mt-0.5">
-                  {stats.medical > 0 && `${stats.medical} medical `}
-                  {stats.ara > 0 && `${stats.ara} ARA`}
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }
