@@ -1,6 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Occupant } from "../types";
-import { Users, MapPin, Activity } from "lucide-react";
+import {
+  Users,
+  MapPin,
+  Activity,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+} from "lucide-react";
 
 interface FloorMapProps {
   occupants: Occupant[];
@@ -75,6 +84,45 @@ export default function FloorMap({
 }: FloorMapProps) {
   const [hoveredQuadrant, setHoveredQuadrant] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"MAP" | "LIST">("MAP");
+
+  // Pan / zoom state for the building plan.
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isExpanded, setIsExpanded] = useState(false);
+  const dragRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clampZoom = (z: number) => Math.max(1, Math.min(3, z));
+  const zoomIn = () => setZoom((z) => clampZoom(z * 1.25));
+  const zoomOut = () =>
+    setZoom((z) => {
+      const next = clampZoom(z / 1.25);
+      if (next === 1) setPan({ x: 0, y: 0 });
+      return next;
+    });
+  const resetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    setZoom((z) => clampZoom(z + (e.deltaY < 0 ? 0.2 : -0.2)));
+  };
+  const handleDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    dragRef.current = { x: e.clientX, y: e.clientY };
+  };
+  const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!dragRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const sx = 400 / (rect.width || 400);
+    const sy = 300 / (rect.height || 300);
+    const dx = (e.clientX - dragRef.current.x) * sx;
+    const dy = (e.clientY - dragRef.current.y) * sy;
+    dragRef.current = { x: e.clientX, y: e.clientY };
+    setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
+  };
+  const endDrag = () => {
+    dragRef.current = null;
+  };
 
   const quadrants = ["NW", "NE", "SW", "SE"];
 
@@ -160,8 +208,59 @@ export default function FloorMap({
       {viewMode === "MAP" ? (
         <>
           {/* Building Plan — modeled on the FDNY "Get to Know Your Building" sheet */}
-          <div className="flex-1 bg-slate-950 rounded-xl border border-slate-850 p-3 relative overflow-hidden min-h-[320px]">
-            <svg viewBox="0 0 400 300" className="w-full h-full">
+          <div
+            className={`flex-1 bg-slate-950 rounded-xl border border-slate-850 p-3 relative overflow-hidden ${
+              isExpanded ? "min-h-[560px]" : "min-h-[320px]"
+            }`}
+          >
+            {/* Zoom / pan controls */}
+            <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={zoomIn}
+                className="w-7 h-7 flex items-center justify-center bg-slate-900/90 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:border-slate-500 transition-all cursor-pointer"
+                title="Zoom in"
+              >
+                <ZoomIn size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={zoomOut}
+                className="w-7 h-7 flex items-center justify-center bg-slate-900/90 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:border-slate-500 transition-all cursor-pointer"
+                title="Zoom out"
+              >
+                <ZoomOut size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsExpanded((v) => !v)}
+                className="w-7 h-7 flex items-center justify-center bg-slate-900/90 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:border-slate-500 transition-all cursor-pointer"
+                title={isExpanded ? "Shrink map" : "Expand map"}
+              >
+                {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              </button>
+              {(zoom !== 1 || pan.x !== 0 || pan.y !== 0) && (
+                <button
+                  type="button"
+                  onClick={resetView}
+                  className="w-7 h-7 flex items-center justify-center bg-amber-900/80 border border-amber-700 rounded-lg text-amber-200 hover:text-white transition-all cursor-pointer"
+                  title="Reset view"
+                >
+                  <RotateCcw size={12} />
+                </button>
+              )}
+            </div>
+
+            <svg
+              viewBox="0 0 400 300"
+              className="w-full h-full"
+              style={{ cursor: dragRef.current ? "grabbing" : "grab" }}
+              onWheel={handleWheel}
+              onMouseDown={handleDown}
+              onMouseMove={handleMove}
+              onMouseUp={endDrag}
+              onMouseLeave={endDrag}
+            >
               <defs>
                 <pattern
                   id="grid"
@@ -196,618 +295,640 @@ export default function FloorMap({
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
 
-              {/* Street labels around the building */}
-              <text
-                x="46"
-                y="150"
-                fill="#64748b"
-                fontSize="7"
-                fontWeight="bold"
-                fontFamily="monospace"
-                textAnchor="middle"
-                transform="rotate(-90 46 150)"
-              >
-                EAST 15 STREET
-              </text>
-              <text
-                x="372"
-                y="150"
-                fill="#64748b"
-                fontSize="7"
-                fontWeight="bold"
-                fontFamily="monospace"
-                textAnchor="middle"
-                transform="rotate(90 372 150)"
-              >
-                EAST 14 STREET
-              </text>
-              <text
-                x="208"
-                y="290"
-                fill="#64748b"
-                fontSize="7"
-                fontWeight="bold"
-                fontFamily="monospace"
-                textAnchor="middle"
-              >
-                IRVING PLACE
-              </text>
-              <text
-                x="150"
-                y="24"
-                fill="#475569"
-                fontSize="6"
-                fontFamily="monospace"
-                textAnchor="middle"
-              >
-                ▲ STEPS
-              </text>
-              <text
-                x="300"
-                y="24"
-                fill="#475569"
-                fontSize="5"
-                fontFamily="monospace"
-                textAnchor="middle"
-              >
-                (2) 550 GAL DIESEL TANK
-              </text>
-
-              {/* Compass (rotated as on the FDNY sheet: E up, N left, S right, W down) */}
-              <g transform="translate(34, 52)">
-                <circle
-                  r="11"
-                  fill="#0f172a"
-                  stroke="#334155"
-                  strokeWidth="1"
-                />
-                <line
-                  x1="0"
-                  y1="-11"
-                  x2="0"
-                  y2="11"
-                  stroke="#475569"
-                  strokeWidth="0.7"
-                />
-                <line
-                  x1="-11"
-                  y1="0"
-                  x2="11"
-                  y2="0"
-                  stroke="#475569"
-                  strokeWidth="0.7"
-                />
+              <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+                {/* Street labels around the building */}
                 <text
-                  x="0"
-                  y="-13"
-                  fill="#94a3b8"
-                  fontSize="5"
-                  textAnchor="middle"
-                >
-                  E
-                </text>
-                <text
-                  x="0"
-                  y="17"
-                  fill="#94a3b8"
-                  fontSize="5"
-                  textAnchor="middle"
-                >
-                  W
-                </text>
-                <text
-                  x="-15"
-                  y="2"
-                  fill="#94a3b8"
-                  fontSize="5"
-                  textAnchor="middle"
-                >
-                  N
-                </text>
-                <text
-                  x="15"
-                  y="2"
-                  fill="#94a3b8"
-                  fontSize="5"
-                  textAnchor="middle"
-                >
-                  S
-                </text>
-              </g>
-
-              {/* Building footprint */}
-              <rect
-                x="58"
-                y="30"
-                width="300"
-                height="238"
-                rx="4"
-                fill="#0b1220"
-                stroke="#334155"
-                strokeWidth="2"
-              />
-
-              {/* Interactive departmental quadrant zones (status-tinted + clickable) */}
-              {quadrants.map((quad) => {
-                const z = ZONES[quad];
-                const stats = getQuadrantStats(quad);
-                const isSelected = selectedQuadrant === quad;
-                const isHovered = hoveredQuadrant === quad;
-                const hasIssues = stats.medical > 0 || stats.missing > 0;
-                return (
-                  <g
-                    key={quad}
-                    onMouseEnter={() => setHoveredQuadrant(quad)}
-                    onMouseLeave={() => setHoveredQuadrant(null)}
-                    onClick={() => onQuadrantClick && onQuadrantClick(quad)}
-                    className="cursor-pointer"
-                  >
-                    <rect
-                      x={z.x}
-                      y={z.y}
-                      width={z.w}
-                      height={z.h}
-                      fill={getQuadrantColor(quad)}
-                      stroke={
-                        isSelected
-                          ? "#f59e0b"
-                          : isHovered
-                            ? "#64748b"
-                            : "#1e293b"
-                      }
-                      strokeWidth={isSelected ? "2" : "1"}
-                      strokeDasharray={isSelected ? "none" : "4 4"}
-                    />
-                    <text
-                      x={z.x + 6}
-                      y={z.y + 12}
-                      fill={isSelected ? "#fbbf24" : "#64748b"}
-                      fontSize="7.5"
-                      fontFamily="monospace"
-                      fontWeight="bold"
-                    >
-                      {quad} · {QUAD_META[quad].dept}
-                    </text>
-                    {/* Safe badge */}
-                    <g transform={`translate(${z.x + z.w - 34}, ${z.y + 4})`}>
-                      <rect
-                        x="0"
-                        y="0"
-                        width="30"
-                        height="14"
-                        rx="3"
-                        fill={hasIssues ? "#7f1d1d" : "#064e3b"}
-                        opacity="0.85"
-                      />
-                      <text
-                        x="15"
-                        y="10"
-                        fill="#fff"
-                        fontSize="7"
-                        fontWeight="bold"
-                        textAnchor="middle"
-                      >
-                        {stats.accounted}/{stats.total}
-                      </text>
-                    </g>
-                    {hasIssues && (
-                      <text
-                        x={z.x + 6}
-                        y={z.y + z.h - 6}
-                        fill="#fca5a5"
-                        fontSize="6.5"
-                        fontFamily="monospace"
-                        fontWeight="bold"
-                      >
-                        {stats.medical > 0 && `⚕${stats.medical} `}
-                        {stats.missing > 0 && `?${stats.missing}`}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* Blind shafts (cyan) */}
-              {BLIND_SHAFTS.map((b, i) => (
-                <rect
-                  key={`bs-${i}`}
-                  x={b.x}
-                  y={b.y}
-                  width="11"
-                  height="11"
-                  rx="1.5"
-                  fill="#0e7490"
-                  stroke="#22d3ee"
-                  strokeWidth="0.8"
-                />
-              ))}
-
-              {/* MER rooms (yellow) */}
-              {MER_ROOMS.map((m, i) => (
-                <g key={`mer-${i}`}>
-                  <rect
-                    x={m.x}
-                    y={m.y}
-                    width="13"
-                    height="11"
-                    rx="1.5"
-                    fill="#a16207"
-                    stroke="#eab308"
-                    strokeWidth="0.8"
-                  />
-                  <text
-                    x={m.x + 6.5}
-                    y={m.y + 8}
-                    fill="#fde68a"
-                    fontSize="5"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                  >
-                    MER
-                  </text>
-                </g>
-              ))}
-
-              {/* Elevator banks (blue) */}
-              {ELEVATOR_BANKS.map((bank) => (
-                <g key={`bank-${bank.id}`}>
-                  <rect
-                    x={bank.x}
-                    y={bank.y}
-                    width={bank.w}
-                    height={bank.h}
-                    rx="2"
-                    fill="#1e3a8a"
-                    stroke="#3b82f6"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={bank.x + 7}
-                    y={bank.y + 10.5}
-                    fill="#bfdbfe"
-                    fontSize="8"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                  >
-                    {bank.id}
-                  </text>
-                  <text
-                    x={bank.x + bank.w / 2 + 4}
-                    y={bank.y + 10}
-                    fill="#93c5fd"
-                    fontSize="5"
-                    fontFamily="monospace"
-                    textAnchor="middle"
-                  >
-                    {bank.nums}
-                  </text>
-                </g>
-              ))}
-
-              {/* Access stair / escalator (orange) — Bank T */}
-              <g>
-                <rect
-                  x={ACCESS_STAIR.x}
-                  y={ACCESS_STAIR.y}
-                  width={ACCESS_STAIR.w}
-                  height={ACCESS_STAIR.h}
-                  rx="2"
-                  fill="#9a3412"
-                  stroke="#f97316"
-                  strokeWidth="1"
-                />
-                <text
-                  x={ACCESS_STAIR.x + ACCESS_STAIR.w / 2}
-                  y={ACCESS_STAIR.y + 7}
-                  fill="#fed7aa"
-                  fontSize="6"
+                  x="46"
+                  y="150"
+                  fill="#64748b"
+                  fontSize="7"
                   fontWeight="bold"
+                  fontFamily="monospace"
                   textAnchor="middle"
+                  transform="rotate(-90 46 150)"
                 >
-                  BANK T
+                  EAST 15 STREET
                 </text>
                 <text
-                  x={ACCESS_STAIR.x + ACCESS_STAIR.w / 2}
-                  y={ACCESS_STAIR.y + 13}
-                  fill="#fdba74"
-                  fontSize="4.5"
+                  x="372"
+                  y="150"
+                  fill="#64748b"
+                  fontSize="7"
+                  fontWeight="bold"
+                  fontFamily="monospace"
+                  textAnchor="middle"
+                  transform="rotate(90 372 150)"
+                >
+                  EAST 14 STREET
+                </text>
+                <text
+                  x="208"
+                  y="290"
+                  fill="#64748b"
+                  fontSize="7"
+                  fontWeight="bold"
                   fontFamily="monospace"
                   textAnchor="middle"
                 >
-                  ↓ BSMT
+                  IRVING PLACE
                 </text>
-              </g>
+                <text
+                  x="150"
+                  y="24"
+                  fill="#475569"
+                  fontSize="6"
+                  fontFamily="monospace"
+                  textAnchor="middle"
+                >
+                  ▲ STEPS
+                </text>
+                <text
+                  x="300"
+                  y="24"
+                  fill="#475569"
+                  fontSize="5"
+                  fontFamily="monospace"
+                  textAnchor="middle"
+                >
+                  (2) 550 GAL DIESEL TANK
+                </text>
 
-              {/* Stairs (green w/ standpipe). Stair A is primary egress. */}
-              {STAIRS.map((s) => (
-                <g key={`stair-${s.id}`}>
-                  <rect
-                    x={s.x}
-                    y={s.y}
-                    width="24"
-                    height="16"
-                    rx="2"
-                    fill="url(#stairHatch)"
-                    stroke="#10b981"
-                    strokeWidth={s.primary ? "2" : "1.2"}
+                {/* Compass (rotated as on the FDNY sheet: E up, N left, S right, W down) */}
+                <g transform="translate(34, 52)">
+                  <circle
+                    r="11"
+                    fill="#0f172a"
+                    stroke="#334155"
+                    strokeWidth="1"
+                  />
+                  <line
+                    x1="0"
+                    y1="-11"
+                    x2="0"
+                    y2="11"
+                    stroke="#475569"
+                    strokeWidth="0.7"
+                  />
+                  <line
+                    x1="-11"
+                    y1="0"
+                    x2="11"
+                    y2="0"
+                    stroke="#475569"
+                    strokeWidth="0.7"
                   />
                   <text
-                    x={s.x + 12}
-                    y={s.y + 7}
-                    fill="#d1fae5"
+                    x="0"
+                    y="-13"
+                    fill="#94a3b8"
+                    fontSize="5"
+                    textAnchor="middle"
+                  >
+                    E
+                  </text>
+                  <text
+                    x="0"
+                    y="17"
+                    fill="#94a3b8"
+                    fontSize="5"
+                    textAnchor="middle"
+                  >
+                    W
+                  </text>
+                  <text
+                    x="-15"
+                    y="2"
+                    fill="#94a3b8"
+                    fontSize="5"
+                    textAnchor="middle"
+                  >
+                    N
+                  </text>
+                  <text
+                    x="15"
+                    y="2"
+                    fill="#94a3b8"
+                    fontSize="5"
+                    textAnchor="middle"
+                  >
+                    S
+                  </text>
+                </g>
+
+                {/* Building footprint */}
+                <rect
+                  x="58"
+                  y="30"
+                  width="300"
+                  height="238"
+                  rx="4"
+                  fill="#0b1220"
+                  stroke="#334155"
+                  strokeWidth="2"
+                />
+
+                {/* Interactive departmental quadrant zones (status-tinted + clickable) */}
+                {quadrants.map((quad) => {
+                  const z = ZONES[quad];
+                  const stats = getQuadrantStats(quad);
+                  const isSelected = selectedQuadrant === quad;
+                  const isHovered = hoveredQuadrant === quad;
+                  const hasIssues = stats.medical > 0 || stats.missing > 0;
+                  return (
+                    <g
+                      key={quad}
+                      onMouseEnter={() => setHoveredQuadrant(quad)}
+                      onMouseLeave={() => setHoveredQuadrant(null)}
+                      onClick={() => onQuadrantClick && onQuadrantClick(quad)}
+                      className="cursor-pointer"
+                    >
+                      <rect
+                        x={z.x}
+                        y={z.y}
+                        width={z.w}
+                        height={z.h}
+                        fill={getQuadrantColor(quad)}
+                        stroke={
+                          isSelected
+                            ? "#f59e0b"
+                            : isHovered
+                              ? "#64748b"
+                              : "#1e293b"
+                        }
+                        strokeWidth={isSelected ? "2" : "1"}
+                        strokeDasharray={isSelected ? "none" : "4 4"}
+                      />
+                      <text
+                        x={z.x + 6}
+                        y={z.y + 12}
+                        fill={isSelected ? "#fbbf24" : "#64748b"}
+                        fontSize="7.5"
+                        fontFamily="monospace"
+                        fontWeight="bold"
+                      >
+                        {quad} · {QUAD_META[quad].dept}
+                      </text>
+                      {/* Safe badge */}
+                      <g transform={`translate(${z.x + z.w - 34}, ${z.y + 4})`}>
+                        <rect
+                          x="0"
+                          y="0"
+                          width="30"
+                          height="14"
+                          rx="3"
+                          fill={hasIssues ? "#7f1d1d" : "#064e3b"}
+                          opacity="0.85"
+                        />
+                        <text
+                          x="15"
+                          y="10"
+                          fill="#fff"
+                          fontSize="7"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {stats.accounted}/{stats.total}
+                        </text>
+                      </g>
+                      {hasIssues && (
+                        <text
+                          x={z.x + 6}
+                          y={z.y + z.h - 6}
+                          fill="#fca5a5"
+                          fontSize="6.5"
+                          fontFamily="monospace"
+                          fontWeight="bold"
+                        >
+                          {stats.medical > 0 && `⚕${stats.medical} `}
+                          {stats.missing > 0 && `?${stats.missing}`}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* Blind shafts (cyan) */}
+                {BLIND_SHAFTS.map((b, i) => (
+                  <rect
+                    key={`bs-${i}`}
+                    x={b.x}
+                    y={b.y}
+                    width="11"
+                    height="11"
+                    rx="1.5"
+                    fill="#0e7490"
+                    stroke="#22d3ee"
+                    strokeWidth="0.8"
+                  />
+                ))}
+
+                {/* MER rooms (yellow) */}
+                {MER_ROOMS.map((m, i) => (
+                  <g key={`mer-${i}`}>
+                    <rect
+                      x={m.x}
+                      y={m.y}
+                      width="13"
+                      height="11"
+                      rx="1.5"
+                      fill="#a16207"
+                      stroke="#eab308"
+                      strokeWidth="0.8"
+                    />
+                    <text
+                      x={m.x + 6.5}
+                      y={m.y + 8}
+                      fill="#fde68a"
+                      fontSize="5"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      MER
+                    </text>
+                  </g>
+                ))}
+
+                {/* Elevator banks (blue) — tap to filter that quadrant */}
+                {ELEVATOR_BANKS.map((bank) => (
+                  <g
+                    key={`bank-${bank.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuadrantClick && onQuadrantClick(bank.quad);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <rect
+                      x={bank.x}
+                      y={bank.y}
+                      width={bank.w}
+                      height={bank.h}
+                      rx="2"
+                      fill="#1e3a8a"
+                      stroke={
+                        selectedQuadrant === bank.quad ? "#fbbf24" : "#3b82f6"
+                      }
+                      strokeWidth={selectedQuadrant === bank.quad ? "2" : "1"}
+                    />
+                    <text
+                      x={bank.x + 7}
+                      y={bank.y + 10.5}
+                      fill="#bfdbfe"
+                      fontSize="8"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {bank.id}
+                    </text>
+                    <text
+                      x={bank.x + bank.w / 2 + 4}
+                      y={bank.y + 10}
+                      fill="#93c5fd"
+                      fontSize="5"
+                      fontFamily="monospace"
+                      textAnchor="middle"
+                    >
+                      {bank.nums}
+                    </text>
+                  </g>
+                ))}
+
+                {/* Access stair / escalator (orange) — Bank T */}
+                <g>
+                  <rect
+                    x={ACCESS_STAIR.x}
+                    y={ACCESS_STAIR.y}
+                    width={ACCESS_STAIR.w}
+                    height={ACCESS_STAIR.h}
+                    rx="2"
+                    fill="#9a3412"
+                    stroke="#f97316"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={ACCESS_STAIR.x + ACCESS_STAIR.w / 2}
+                    y={ACCESS_STAIR.y + 7}
+                    fill="#fed7aa"
+                    fontSize="6"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    BANK T
+                  </text>
+                  <text
+                    x={ACCESS_STAIR.x + ACCESS_STAIR.w / 2}
+                    y={ACCESS_STAIR.y + 13}
+                    fill="#fdba74"
+                    fontSize="4.5"
+                    fontFamily="monospace"
+                    textAnchor="middle"
+                  >
+                    ↓ BSMT
+                  </text>
+                </g>
+
+                {/* Stairs (green w/ standpipe). Stair A is primary egress. */}
+                {STAIRS.map((s) => (
+                  <g key={`stair-${s.id}`}>
+                    <rect
+                      x={s.x}
+                      y={s.y}
+                      width="24"
+                      height="16"
+                      rx="2"
+                      fill="url(#stairHatch)"
+                      stroke="#10b981"
+                      strokeWidth={s.primary ? "2" : "1.2"}
+                    />
+                    <text
+                      x={s.x + 12}
+                      y={s.y + 7}
+                      fill="#d1fae5"
+                      fontSize="6.5"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      STR {s.id}
+                    </text>
+                    <text
+                      x={s.x + 12}
+                      y={s.y + 13}
+                      fill="#6ee7b7"
+                      fontSize="4.5"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {s.primary ? "✓ PRIMARY" : "✓ CLEAR"}
+                    </text>
+                    {s.sp && (
+                      <circle
+                        cx={s.x + 22}
+                        cy={s.y - 1}
+                        r="3"
+                        fill="#dc2626"
+                        stroke="#fca5a5"
+                        strokeWidth="0.5"
+                      />
+                    )}
+                  </g>
+                ))}
+
+                {/* Stair C — interactive blockable secondary egress */}
+                <g
+                  onClick={onToggleStairB}
+                  className="cursor-pointer transition-all hover:opacity-80"
+                >
+                  <rect
+                    x="318"
+                    y="96"
+                    width="28"
+                    height="18"
+                    rx="2"
+                    fill={stairBBlocked ? "#7f1d1d" : "url(#stairHatch)"}
+                    stroke={stairBBlocked ? "#ef4444" : "#10b981"}
+                    strokeWidth="2"
+                  />
+                  <text
+                    x="332"
+                    y="104"
+                    fill={stairBBlocked ? "#fca5a5" : "#d1fae5"}
                     fontSize="6.5"
                     fontWeight="bold"
                     textAnchor="middle"
                   >
-                    STR {s.id}
+                    STR C
                   </text>
                   <text
-                    x={s.x + 12}
-                    y={s.y + 13}
-                    fill="#6ee7b7"
+                    x="332"
+                    y="111"
+                    fill={stairBBlocked ? "#fbbf24" : "#6ee7b7"}
                     fontSize="4.5"
                     fontWeight="bold"
                     textAnchor="middle"
+                    className={stairBBlocked ? "animate-pulse" : ""}
                   >
-                    {s.primary ? "✓ PRIMARY" : "✓ CLEAR"}
+                    {stairBBlocked ? "⚠ BLOCKED" : "✓ CLEAR"}
                   </text>
-                  {s.sp && (
-                    <circle
-                      cx={s.x + 22}
-                      cy={s.y - 1}
-                      r="3"
-                      fill="#dc2626"
-                      stroke="#fca5a5"
-                      strokeWidth="0.5"
-                    />
-                  )}
-                </g>
-              ))}
-
-              {/* Stair C — interactive blockable secondary egress */}
-              <g
-                onClick={onToggleStairB}
-                className="cursor-pointer transition-all hover:opacity-80"
-              >
-                <rect
-                  x="318"
-                  y="96"
-                  width="28"
-                  height="18"
-                  rx="2"
-                  fill={stairBBlocked ? "#7f1d1d" : "url(#stairHatch)"}
-                  stroke={stairBBlocked ? "#ef4444" : "#10b981"}
-                  strokeWidth="2"
-                />
-                <text
-                  x="332"
-                  y="104"
-                  fill={stairBBlocked ? "#fca5a5" : "#d1fae5"}
-                  fontSize="6.5"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  STR C
-                </text>
-                <text
-                  x="332"
-                  y="111"
-                  fill={stairBBlocked ? "#fbbf24" : "#6ee7b7"}
-                  fontSize="4.5"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  className={stairBBlocked ? "animate-pulse" : ""}
-                >
-                  {stairBBlocked ? "⚠ BLOCKED" : "✓ CLEAR"}
-                </text>
-                <circle
-                  cx="344"
-                  cy="95"
-                  r="3"
-                  fill="#dc2626"
-                  stroke="#fca5a5"
-                  strokeWidth="0.5"
-                />
-              </g>
-
-              {/* Fire Command Station (FCS) near Bank A / Main Entrance */}
-              <g>
-                <rect
-                  x="338"
-                  y="204"
-                  width="16"
-                  height="14"
-                  rx="2"
-                  fill="#b45309"
-                  stroke="#f59e0b"
-                  strokeWidth="1"
-                />
-                <text
-                  x="346"
-                  y="213"
-                  fill="#fde68a"
-                  fontSize="6"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  FCS
-                </text>
-              </g>
-
-              {/* Combination FD Connections (yellow) on the perimeter */}
-              {FD_CONNECTIONS.map((f, i) => (
-                <g key={`fd-${i}`}>
                   <circle
-                    cx={f.x}
-                    cy={f.y}
-                    r="4"
-                    fill="#facc15"
-                    stroke="#854d0e"
-                    strokeWidth="0.7"
+                    cx="344"
+                    cy="95"
+                    r="3"
+                    fill="#dc2626"
+                    stroke="#fca5a5"
+                    strokeWidth="0.5"
+                  />
+                </g>
+
+                {/* Fire Command Station (FCS) near Bank A / Main Entrance */}
+                <g>
+                  <rect
+                    x="338"
+                    y="204"
+                    width="16"
+                    height="14"
+                    rx="2"
+                    fill="#b45309"
+                    stroke="#f59e0b"
+                    strokeWidth="1"
                   />
                   <text
-                    x={f.x}
-                    y={f.y + 2.4}
-                    fill="#713f12"
-                    fontSize="5"
+                    x="346"
+                    y="213"
+                    fill="#fde68a"
+                    fontSize="6"
                     fontWeight="bold"
                     textAnchor="middle"
                   >
-                    Y
+                    FCS
                   </text>
                 </g>
-              ))}
 
-              {/* Main Entrance marker (Irving Place) */}
-              <g>
-                <rect
-                  x="196"
-                  y="258"
-                  width="60"
-                  height="10"
-                  rx="2"
-                  fill="#1e293b"
-                  stroke="#475569"
-                  strokeWidth="0.8"
-                />
-                <text
-                  x="226"
-                  y="265"
-                  fill="#cbd5e1"
-                  fontSize="5.5"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  MAIN ENTRANCE
-                </text>
-              </g>
-
-              {/* Fire hazard indicator over the NE office */}
-              <g>
-                <circle
-                  cx="300"
-                  cy="70"
-                  r="14"
-                  fill="#7f1d1d"
-                  fillOpacity="0.3"
-                  className="animate-pulse"
-                />
-                <circle
-                  cx="300"
-                  cy="70"
-                  r="9"
-                  fill="#ef4444"
-                  fillOpacity="0.7"
-                />
-                <circle
-                  cx="300"
-                  cy="70"
-                  r="12"
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth="1.2"
-                  className="animate-ping"
-                />
-                <text
-                  x="300"
-                  y="72"
-                  fill="#fef08a"
-                  fontSize="6"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  FIRE
-                </text>
-              </g>
-
-              {/* Area of Rescue Assistance (ARA) staging per quadrant */}
-              {(
-                [
-                  { x: 64, y: 130, label: "ARA NW", quad: "NW" },
-                  { x: 320, y: 130, label: "ARA NE", quad: "NE" },
-                  { x: 64, y: 249, label: "ARA SW", quad: "SW" },
-                  { x: 320, y: 249, label: "ARA SE", quad: "SE" },
-                ] as const
-              ).map((ara, index) => {
-                const araOccupants = occupants.filter(
-                  (o) => o.quadrant === ara.quad && o.status === "ARA_STAGING",
-                );
-                const hasOccupants = araOccupants.length > 0;
-                return (
-                  <g key={`ara-${index}`}>
-                    <rect
-                      x={ara.x}
-                      y={ara.y}
-                      width="34"
-                      height="15"
-                      rx="2"
-                      fill={hasOccupants ? "#1e3a8a" : "#172554"}
-                      stroke="#3b82f6"
-                      strokeWidth={hasOccupants ? "1.5" : "0.8"}
-                      className={hasOccupants ? "animate-pulse" : ""}
+                {/* Combination FD Connections (yellow) on the perimeter */}
+                {FD_CONNECTIONS.map((f, i) => (
+                  <g key={`fd-${i}`}>
+                    <circle
+                      cx={f.x}
+                      cy={f.y}
+                      r="4"
+                      fill="#facc15"
+                      stroke="#854d0e"
+                      strokeWidth="0.7"
                     />
                     <text
-                      x={ara.x + 17}
-                      y={ara.y + 7}
-                      fill="#93c5fd"
-                      fontSize="5.5"
+                      x={f.x}
+                      y={f.y + 2.4}
+                      fill="#713f12"
+                      fontSize="5"
                       fontWeight="bold"
                       textAnchor="middle"
                     >
-                      ♿ {ara.label}
+                      Y
                     </text>
-                    {hasOccupants && (
+                  </g>
+                ))}
+
+                {/* Main Entrance marker (Irving Place) */}
+                <g>
+                  <rect
+                    x="196"
+                    y="258"
+                    width="60"
+                    height="10"
+                    rx="2"
+                    fill="#1e293b"
+                    stroke="#475569"
+                    strokeWidth="0.8"
+                  />
+                  <text
+                    x="226"
+                    y="265"
+                    fill="#cbd5e1"
+                    fontSize="5.5"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    MAIN ENTRANCE
+                  </text>
+                </g>
+
+                {/* Fire hazard indicator over the NE office */}
+                <g>
+                  <circle
+                    cx="300"
+                    cy="70"
+                    r="14"
+                    fill="#7f1d1d"
+                    fillOpacity="0.3"
+                    className="animate-pulse"
+                  />
+                  <circle
+                    cx="300"
+                    cy="70"
+                    r="9"
+                    fill="#ef4444"
+                    fillOpacity="0.7"
+                  />
+                  <circle
+                    cx="300"
+                    cy="70"
+                    r="12"
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth="1.2"
+                    className="animate-ping"
+                  />
+                  <text
+                    x="300"
+                    y="72"
+                    fill="#fef08a"
+                    fontSize="6"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    FIRE
+                  </text>
+                </g>
+
+                {/* Area of Rescue Assistance (ARA) staging per quadrant */}
+                {(
+                  [
+                    { x: 64, y: 130, label: "ARA NW", quad: "NW" },
+                    { x: 320, y: 130, label: "ARA NE", quad: "NE" },
+                    { x: 64, y: 249, label: "ARA SW", quad: "SW" },
+                    { x: 320, y: 249, label: "ARA SE", quad: "SE" },
+                  ] as const
+                ).map((ara, index) => {
+                  const araOccupants = occupants.filter(
+                    (o) =>
+                      o.quadrant === ara.quad && o.status === "ARA_STAGING",
+                  );
+                  const hasOccupants = araOccupants.length > 0;
+                  return (
+                    <g key={`ara-${index}`}>
+                      <rect
+                        x={ara.x}
+                        y={ara.y}
+                        width="34"
+                        height="15"
+                        rx="2"
+                        fill={hasOccupants ? "#1e3a8a" : "#172554"}
+                        stroke="#3b82f6"
+                        strokeWidth={hasOccupants ? "1.5" : "0.8"}
+                        className={hasOccupants ? "animate-pulse" : ""}
+                      />
                       <text
                         x={ara.x + 17}
-                        y={ara.y + 13}
-                        fill="#fbbf24"
-                        fontSize="5"
+                        y={ara.y + 7}
+                        fill="#93c5fd"
+                        fontSize="5.5"
                         fontWeight="bold"
                         textAnchor="middle"
                       >
-                        {araOccupants.length} WAITING
+                        ♿ {ara.label}
                       </text>
-                    )}
-                  </g>
-                );
-              })}
+                      {hasOccupants && (
+                        <text
+                          x={ara.x + 17}
+                          y={ara.y + 13}
+                          fill="#fbbf24"
+                          fontSize="5"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {araOccupants.length} WAITING
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </g>
             </svg>
+
+            {/* Interaction hint */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 text-[8px] font-mono text-slate-500 bg-slate-950/70 px-2 py-0.5 rounded-full border border-slate-850 whitespace-nowrap pointer-events-none">
+              Scroll / pinch to zoom · drag to pan · tap a bank to filter
+            </div>
           </div>
 
           {/* Building legend (matches the FDNY plan key) */}
-          <div className="mt-2 shrink-0 bg-slate-900/40 border border-slate-850 rounded-lg px-2.5 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[8px] font-mono text-slate-400">
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#1e3a8a] border border-[#3b82f6]" />
-              Elevator
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#064e3b] border border-[#10b981]" />
-              Stair
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#dc2626]" />
-              Standpipe
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#0e7490] border border-[#22d3ee]" />
-              Blind Shaft
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#9a3412] border border-[#f97316]" />
-              Access Stair
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#a16207] border border-[#eab308]" />
-              MER
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#b45309] border border-[#f59e0b]" />
-              FCS
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#facc15]" />
-              FD Connection
-            </span>
+          <div className="mt-2 shrink-0 bg-slate-900/40 border border-slate-850 rounded-lg px-3 py-2">
+            <div className="text-[8px] font-mono font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+              Building Legend
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 text-[8px] font-mono text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#1e3a8a] border border-[#3b82f6]" />
+                Elevator
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#064e3b] border border-[#10b981]" />
+                Stair
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#dc2626]" />
+                Standpipe
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#0e7490] border border-[#22d3ee]" />
+                Blind Shaft
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#9a3412] border border-[#f97316]" />
+                Access Stair
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#a16207] border border-[#eab308]" />
+                MER Rooms
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#b45309] border border-[#f59e0b]" />
+                Fire Command
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#facc15]" />
+                FD Connection
+              </span>
+            </div>
           </div>
         </>
       ) : (

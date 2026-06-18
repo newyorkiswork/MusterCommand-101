@@ -19,6 +19,7 @@ import {
   ChevronRight,
   MapPin,
   Unlock,
+  Radio,
 } from "lucide-react";
 import { Occupant, LedgerBlock, DrillHistoryItem } from "../types";
 import FloorMap from "./FloorMap";
@@ -285,6 +286,39 @@ export default function FSDCommandCenter({
       setIsUnsealing(false);
     }
   };
+
+  // Warden Acknowledgement Pipeline — tracks SENT -> DELIVERED -> ACKNOWLEDGED
+  // for each quadrant warden whenever a new F-89 directive is broadcast.
+  const WARDEN_SECTORS = ["NW", "NE", "SW", "SE"] as const;
+  const [ackStage, setAckStage] = useState<Record<string, number>>({
+    NW: 2,
+    NE: 2,
+    SW: 2,
+    SE: 2,
+  });
+
+  useEffect(() => {
+    // New directive -> reset and roll each warden through to acknowledged.
+    setAckStage({ NW: 0, NE: 0, SW: 0, SE: 0 });
+    const timers: number[] = [];
+    WARDEN_SECTORS.forEach((s, i) => {
+      timers.push(
+        window.setTimeout(
+          () => setAckStage((p) => ({ ...p, [s]: 1 })),
+          400 + i * 220,
+        ),
+      );
+      timers.push(
+        window.setTimeout(
+          () => setAckStage((p) => ({ ...p, [s]: 2 })),
+          950 + i * 320,
+        ),
+      );
+    });
+    return () => timers.forEach((t) => clearTimeout(t));
+  }, [activeDirective]);
+
+  const ackCount = Object.values(ackStage).filter((v) => v === 2).length;
 
   // Dynamic incident clock
   useEffect(() => {
@@ -565,6 +599,82 @@ MusterCommand OS Integration Engine
               <p className="text-slate-200 font-medium text-[10px] leading-tight mt-1">
                 {activeDirective}
               </p>
+            </div>
+
+            {/* Warden Acknowledgement Pipeline */}
+            <div className="bg-slate-950 p-2 rounded-lg border border-slate-850/80">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[8px] font-mono tracking-wider uppercase text-slate-400 font-bold flex items-center gap-1">
+                  <Radio size={9} className="text-amber-500" /> Warden
+                  Acknowledgement Pipeline
+                </span>
+                <span
+                  className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    ackCount === 4
+                      ? "bg-emerald-950 text-emerald-400"
+                      : "bg-amber-950 text-amber-400"
+                  }`}
+                >
+                  {ackCount}/4 ACK
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mb-1.5 text-[7px] font-mono">
+                <span className="flex items-center gap-1 text-amber-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />{" "}
+                  Sent
+                </span>
+                <span className="flex items-center gap-1 text-blue-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />{" "}
+                  Delivered
+                </span>
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{" "}
+                  Acknowledged
+                </span>
+              </div>
+              <div className="space-y-1">
+                {WARDEN_SECTORS.map((s) => {
+                  const stage = ackStage[s] ?? 0;
+                  return (
+                    <div key={s} className="flex items-center gap-1.5">
+                      <span className="w-5 text-[9px] font-mono font-bold text-slate-400">
+                        {s}
+                      </span>
+                      <div className="flex-1 flex items-center">
+                        <span
+                          className="w-2 h-2 rounded-full bg-amber-400"
+                          title="Sent"
+                        />
+                        <span
+                          className={`flex-1 h-0.5 ${stage >= 1 ? "bg-blue-400" : "bg-slate-800"}`}
+                        />
+                        <span
+                          className={`w-2 h-2 rounded-full ${stage >= 1 ? "bg-blue-400" : "bg-slate-700"}`}
+                          title="Delivered"
+                        />
+                        <span
+                          className={`flex-1 h-0.5 ${stage >= 2 ? "bg-emerald-400" : "bg-slate-800"}`}
+                        />
+                        <span
+                          className={`w-2 h-2 rounded-full ${stage >= 2 ? "bg-emerald-400" : "bg-slate-700"}`}
+                          title="Acknowledged"
+                        />
+                      </div>
+                      <span
+                        className={`text-[7.5px] font-mono font-bold w-9 text-right ${
+                          stage >= 2
+                            ? "text-emerald-400"
+                            : stage >= 1
+                              ? "text-blue-400"
+                              : "text-amber-400"
+                        }`}
+                      >
+                        {stage >= 2 ? "ACK ✓" : stage >= 1 ? "DLVR" : "SENT"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Quick Dispatch Presets */}
