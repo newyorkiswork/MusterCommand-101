@@ -334,28 +334,39 @@ export default function OccupantMobile({
       </div>
 
       {/* Navigation Segment Control */}
-      <div className="grid grid-cols-2 gap-1 bg-gray-900/90 p-1 rounded-2xl border border-gray-800 mb-3 shrink-0">
+      <div
+        role="tablist"
+        aria-label="Check-in method"
+        className="grid grid-cols-2 gap-1 bg-gray-900/90 p-1 rounded-2xl border border-gray-800 mb-3 shrink-0"
+      >
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeScreen === "FORM"}
           onClick={() => setActiveScreen("FORM")}
-          className={`py-1.5 text-[10px] font-mono font-bold rounded-xl transition-all uppercase ${
+          className={`min-h-[40px] text-[11px] font-semibold rounded-xl transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-slate-400/60 ${
             activeScreen === "FORM"
-              ? "bg-slate-800 text-slate-100 border border-slate-700 shadow-md font-semibold"
+              ? "bg-slate-800 text-slate-100 border border-slate-700 shadow-md"
               : "text-gray-400 hover:text-gray-200"
           }`}
           id="btn-nav-status-form"
         >
-          Manual Evac Form
+          Status Form
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeScreen === "QR_PASS"}
           onClick={() => setActiveScreen("QR_PASS")}
-          className={`py-1.5 text-[10px] font-mono font-bold rounded-xl transition-all uppercase flex items-center justify-center gap-1 ${
+          className={`min-h-[40px] text-[11px] font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-400/60 ${
             activeScreen === "QR_PASS"
-              ? "bg-slate-800 text-slate-100 border border-slate-700 shadow-md font-semibold"
+              ? "bg-slate-800 text-slate-100 border border-slate-700 shadow-md"
               : "text-gray-400 hover:text-gray-200"
           }`}
           id="btn-nav-qr-pass"
         >
           <span
+            aria-hidden="true"
             className={`w-1.5 h-1.5 rounded-full bg-amber-400 ${occupant.status !== "SAFE" ? "animate-ping" : ""} inline-block`}
           />
           Muster QR Pass
@@ -611,6 +622,8 @@ export default function OccupantMobile({
 
             {/* Quick Simulation check-in trigger */}
             <button
+              type="button"
+              aria-label="Simulate muster gate scan and check in as safe"
               onClick={() => {
                 onUpdateStatus(
                   occupant.id,
@@ -624,10 +637,10 @@ export default function OccupantMobile({
                 );
                 setActiveScreen("FORM");
               }}
-              className="w-full bg-slate-800 hover:bg-slate-750 text-slate-100 font-mono text-[10px] py-2 border border-slate-700 hover:border-slate-650 rounded-xl font-bold uppercase transition-all tracking-wider active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full min-h-[44px] bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold border border-slate-700 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-400/40"
             >
-              <QrCode size={12} className="text-amber-500" />
-              Simulate Gate Terminal scan
+              <QrCode size={16} aria-hidden="true" className="text-amber-400" />
+              Simulate gate scan
             </button>
           </div>
         )}
