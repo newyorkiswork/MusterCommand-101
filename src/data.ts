@@ -257,7 +257,7 @@ function generateRoster(count: number): Occupant[] {
       role: "Occupant",
       status,
       quadrant,
-      staircase: quadrant === "NE" || quadrant === "SE" ? "Stair B" : "Stair A",
+      staircase: quadrant === "NE" || quadrant === "SE" ? "Stair C" : "Stair A",
       musterZone: "Zone A",
       lastSeen: "10:0" + (i % 10) + " AM",
       fallDetected: false,

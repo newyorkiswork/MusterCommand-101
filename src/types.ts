@@ -12,7 +12,12 @@
  * Contractor: Third-party personnel (tracked separately per FDNY regulations)
  * Visitor: Lobby sign-in personnel (highest accountability risk)
  */
-export type OccupantRole = "F-89 FSD" | "F-58 Warden" | "Occupant" | "Contractor" | "Visitor";
+export type OccupantRole =
+  | "F-89 FSD"
+  | "F-58 Warden"
+  | "Occupant"
+  | "Contractor"
+  | "Visitor";
 
 /**
  * Evacuation accountability status codes aligned with FDNY terminology.
@@ -22,7 +27,11 @@ export type OccupantRole = "F-89 FSD" | "F-58 Warden" | "Occupant" | "Contractor
  *              awaiting FDNY-assisted evacuation (OSHA 1910.38(c)(1))
  * MEDICAL: Personnel reporting injury, fall detection, or distress
  */
-export type OccupantStatus = "ACCOUNTED" | "MISSING" | "ARA_STAGING" | "MEDICAL";
+export type OccupantStatus =
+  | "ACCOUNTED"
+  | "MISSING"
+  | "ARA_STAGING"
+  | "MEDICAL";
 
 /**
  * ConEdison Floor 7 departmental quadrants.
@@ -31,12 +40,12 @@ export type OccupantStatus = "ACCOUNTED" | "MISSING" | "ARA_STAGING" | "MEDICAL"
 export type Quadrant = "NW" | "NE" | "SW" | "SE" | "Center";
 
 /**
- * Egress routes per the building's Emergency Action Plan.
- * Stair A: North stairwell (primary egress)
- * Stair B: South stairwell (secondary, can be blocked)
+ * Egress routes per the building's Emergency Action Plan (4 Irving Plaza).
+ * Stair A: primary egress at the Main Entrance (Irving Place)
+ * Stair C: east stairwell (East 14th St) — secondary, can be blocked
  * ARA: Area of Rescue Assistance (mobility-impaired only)
  */
-export type EgressRoute = "Stair A" | "Stair B" | "ARA";
+export type EgressRoute = "Stair A" | "Stair C" | "ARA";
 
 /**
  * Muster assembly zones around Union Square.
@@ -47,20 +56,20 @@ export type EgressRoute = "Stair A" | "Stair B" | "ARA";
 export type MusterZone = "Zone A" | "Zone B" | "Zone C";
 
 export interface Occupant {
-  id: string;                       // Vault Token (e.g. usr_a7f8c9d1)
-  badgeId: string;                  // Physical badge code (e.g. FE019283)
-  nameEncrypted: string;            // Tokenization-at-Rest placeholder (e.g. "J••• D••")
-  role: OccupantRole;               // FDNY Fire Safety Plan designation
-  status: OccupantStatus;           // Current evacuation accountability state
-  quadrant: Quadrant;               // Last-known departmental quadrant
-  staircase?: EgressRoute;          // Assigned or used egress route
-  musterZone?: MusterZone;          // Assembly point designation
-  lastSeen: string;                 // Timestamp of last status update
-  alertNote?: string;               // Free-text distress note (DOMPurify sanitized)
-  fallDetected?: boolean;           // On-device accelerometer fall sensor (OSHA 1910.38(c)(1))
-  mobilityImpaired?: boolean;       // ARA-eligible individual (cannot use stairs)
-  isAtARA?: boolean;                // Currently staged at Area of Rescue Assistance
-  drillParticipant?: boolean;       // OSHA 1910.38(e) drill participation tracking
+  id: string; // Vault Token (e.g. usr_a7f8c9d1)
+  badgeId: string; // Physical badge code (e.g. FE019283)
+  nameEncrypted: string; // Tokenization-at-Rest placeholder (e.g. "J••• D••")
+  role: OccupantRole; // FDNY Fire Safety Plan designation
+  status: OccupantStatus; // Current evacuation accountability state
+  quadrant: Quadrant; // Last-known departmental quadrant
+  staircase?: EgressRoute; // Assigned or used egress route
+  musterZone?: MusterZone; // Assembly point designation
+  lastSeen: string; // Timestamp of last status update
+  alertNote?: string; // Free-text distress note (DOMPurify sanitized)
+  fallDetected?: boolean; // On-device accelerometer fall sensor (OSHA 1910.38(c)(1))
+  mobilityImpaired?: boolean; // ARA-eligible individual (cannot use stairs)
+  isAtARA?: boolean; // Currently staged at Area of Rescue Assistance
+  drillParticipant?: boolean; // OSHA 1910.38(e) drill participation tracking
 }
 
 export interface LedgerBlock {
@@ -74,10 +83,10 @@ export interface LedgerBlock {
 export interface DrillHistoryItem {
   id: string;
   date: string;
-  duration: number;         // in seconds
+  duration: number; // in seconds
   totalOccupants: number;
   safeCount: number;
   unaccountedCount: number;
-  complianceRate: number;   // percentage
+  complianceRate: number; // percentage
   narrative: string;
 }
