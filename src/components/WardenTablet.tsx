@@ -41,7 +41,7 @@ export default function WardenTablet({
 }: WardenTabletProps) {
   const [badgeIdField, setBadgeIdField] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"MISSING" | "ACCOUNTED">("MISSING");
+  const [activeTab, setActiveTab] = useState<"MISSING" | "SAFE">("MISSING");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [activeScanMode, setActiveScanMode] = useState<"RFID" | "QR">("RFID");
   const [selectedQrUser, setSelectedQrUser] = useState<string>("");
@@ -92,8 +92,9 @@ export default function WardenTablet({
       return;
     }
 
-    onUpdateStatus(matchedOccupant.id, "ACCOUNTED", "Zone A", "NFC scanned by Warden NW", false);
-    onLogEvent(`Warden NW scanned RFID Badge ${cleanBadge} at Stair A landing: marked ACCOUNTED.`);
+    // Trigger check-in
+    onUpdateStatus(matchedOccupant.id, "SAFE", "Zone A", "NFC scanned by Warden NW", false);
+    onLogEvent(`Warden NW scanned RFID Badge ${cleanBadge} at Stair A landing: marked SAFE.`);
 
     // Perform JIT Decryption from Vault Node over simulated TLS 1.3
     requestVaultDecryption(matchedOccupant.id);
@@ -166,16 +167,16 @@ export default function WardenTablet({
 
     occupants.forEach(occ => {
       if (occ.quadrant === "NW" && occ.status === "MISSING") {
-        onUpdateStatus(occ.id, "ACCOUNTED", "Zone A", "Quadrant Attestation by Warden NW", false);
+        onUpdateStatus(occ.id, "SAFE", "Zone A", "Quadrant Attestation by Warden NW", false);
       }
     });
 
-    onLogEvent(`Warden NW issued dynamic Attestation: marked and verified all remaining ${nwCount} Northwest Quadrant occupants ACCOUNTED.`);
+    onLogEvent(`Warden NW issued dynamic Attestation: marked and verified all remaining ${nwCount} Northwest Quadrant occupants SAFE.`);
   };
 
   // Filter lists based on Tab & Search query
   const filteredOccupants = occupants.filter(occ => {
-    const isTabMatch = activeTab === "ACCOUNTED" ? occ.status === "ACCOUNTED" : occ.status !== "ACCOUNTED";
+    const isTabMatch = activeTab === "SAFE" ? occ.status === "SAFE" : occ.status !== "SAFE";
     const cleanQuery = searchQuery.toLowerCase();
     const isQueryMatch = occ.id.toLowerCase().includes(cleanQuery) || 
                          occ.badgeId.toLowerCase().includes(cleanQuery) ||
@@ -185,8 +186,8 @@ export default function WardenTablet({
     return isTabMatch && isQueryMatch;
   });
 
-  const missingCount = occupants.filter(o => o.status !== "ACCOUNTED").length;
-  const safeCount = occupants.filter(o => o.status === "ACCOUNTED").length;
+  const missingCount = occupants.filter(o => o.status !== "SAFE").length;
+  const safeCount = occupants.filter(o => o.status === "SAFE").length;
 
   return (
     <div className="w-full bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-2xl flex flex-col h-[710px] relative text-slate-100 overflow-hidden">
@@ -194,7 +195,7 @@ export default function WardenTablet({
       {/* Kiosk Status Header */}
       <div className="flex justify-between items-center border-b border-slate-850 pb-3 mb-3">
         <div>
-          <div className="flex items-center gap-1.5 font-bold tracking-tight text-amber-500 text-base">
+          <div className="flex items-center gap-1.5 font-bold tracking-tight text-amber-500 text-sm">
             <Radio size={14} className="animate-pulse" />
             <span>WARDEN TACTICAL SHEATH</span>
           </div>
@@ -217,22 +218,22 @@ export default function WardenTablet({
       </div>
 
       {/* Real-time Emergency SOS Alert Notice Banner */}
-      {occupants.some(o => o.status === "MEDICAL" && o.fallDetected) && (
-        <div className="bg-red-950/90 border border-red-500 rounded-2xl p-3 mb-3 text-sm flex flex-col gap-2 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse" id="warden-sos-banner">
+      {occupants.some(o => o.status === "CRITICAL") && (
+        <div className="bg-red-950/90 border border-red-500 rounded-2xl p-3 mb-3 text-xs flex flex-col gap-2 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse" id="warden-sos-banner">
           <div className="flex items-start justify-between gap-2.5">
             <div className="flex items-start gap-2">
               <AlertOctagon className="text-red-500 shrink-0 mt-0.5" size={16} />
               <div className="flex-1">
                 <span className="text-[9px] font-mono font-bold text-red-400 uppercase tracking-widest block mb-0.5">⚠️ PRIORITY SOS PANIC ACTIVE</span>
                 <p className="text-slate-205 font-sans text-[11px] leading-relaxed">
-                  Crisis beacon active for occupant <span className="font-bold text-white bg-red-900/60 px-1.5 py-0.5 rounded font-mono select-all ml-0.5">{occupants.find(o => o.status === "MEDICAL" && o.fallDetected)?.id}</span>.
+                  Crisis beacon active for occupant <span className="font-bold text-white bg-red-900/60 px-1.5 py-0.5 rounded font-mono select-all ml-0.5">{occupants.find(o => o.status === "CRITICAL")?.id}</span>.
                   Device tilt sensor registered emergency trigger. Immediate deployment/response recommended.
                 </p>
               </div>
             </div>
             <button
               onClick={() => {
-                const emergencyUserId = occupants.find(o => o.status === "MEDICAL" && o.fallDetected)?.id;
+                const emergencyUserId = occupants.find(o => o.status === "CRITICAL")?.id;
                 if (emergencyUserId) {
                   setActiveTab("MISSING");
                   requestVaultDecryption(emergencyUserId);
@@ -248,7 +249,7 @@ export default function WardenTablet({
       )}
 
       {/* Active F-89 Strategic Directive Banner */}
-      <div className="bg-gradient-to-r from-red-950/40 to-amber-950/30 border border-amber-900/40 rounded-2xl p-3 mb-3 text-sm flex flex-col gap-2 shadow-inner">
+      <div className="bg-gradient-to-r from-red-950/40 to-amber-950/30 border border-amber-900/40 rounded-2xl p-3 mb-3 text-xs flex flex-col gap-2 shadow-inner">
         <div className="flex-1">
           <span className="text-[9px] font-mono font-bold text-amber-500 uppercase tracking-widest block mb-1">🚨 FDNY DIRECTIVE FROM FSD CORE STATION</span>
           <p className="text-slate-100 font-sans text-[11px] font-semibold leading-relaxed">{activeDirective}</p>
@@ -311,7 +312,7 @@ export default function WardenTablet({
             {activeScanMode === "RFID" ? (
               <>
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-mono tracking-wider text-slate-300 uppercase">RFID Badge Gateway</h3>
+                  <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">RFID Badge Gateway</h3>
                   <span className="text-[9px] bg-indigo-950/90 text-indigo-400 border border-indigo-900/50 px-1.5 py-0.2 rounded font-mono">
                     HMAC-SHA256
                   </span>
@@ -331,7 +332,7 @@ export default function WardenTablet({
                     value={badgeIdField}
                     readOnly
                     placeholder="REGISTRATION CODE: e.g. NW112233"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 px-3 text-center font-mono text-base text-yellow-400 placeholder:text-slate-600 focus:outline-none"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 px-3 text-center font-mono text-sm text-yellow-400 placeholder:text-slate-600 focus:outline-none"
                   />
                 </div>
 
@@ -350,7 +351,7 @@ export default function WardenTablet({
                     <button
                       key={num}
                       onClick={() => handleKeypadPress(num)}
-                      className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-sm py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
+                      className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-xs py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
                     >
                       {num}
                     </button>
@@ -359,7 +360,7 @@ export default function WardenTablet({
                     <button
                       key={num}
                       onClick={() => handleKeypadPress(num)}
-                      className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-sm py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
+                      className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-xs py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
                     >
                       {num}
                     </button>
@@ -369,7 +370,7 @@ export default function WardenTablet({
                       <button
                         key={num}
                         onClick={() => handleKeypadPress(num)}
-                        className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-sm py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
+                        className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-xs py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
                       >
                         {num}
                       </button>
@@ -393,7 +394,7 @@ export default function WardenTablet({
               /* QR CODE SCANNER VIEWPORT */
               <div className="space-y-3 animate-fadeIn">
                 <div className="flex justify-between items-center bg-slate-900 p-2 rounded-xl border border-slate-800">
-                  <h3 className="text-sm font-mono tracking-wider text-slate-300 uppercase">Muster Scan Reader</h3>
+                  <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">Muster Scan Reader</h3>
                   <span className={`text-[9px] border px-1.5 py-0.5 rounded font-mono font-bold ${
                     isScanning 
                       ? "bg-amber-950 text-amber-400 border-amber-800 animate-pulse" 
@@ -459,7 +460,7 @@ export default function WardenTablet({
                     <select
                       value={selectedQrUser}
                       onChange={(e) => setSelectedQrUser(e.target.value)}
-                      className="flex-1 bg-slate-950 border border-slate-805 rounded-lg px-2 py-1 text-sm text-slate-350 font-mono focus:outline-none"
+                      className="flex-1 bg-slate-950 border border-slate-805 rounded-lg px-2 py-1 text-xs text-slate-350 font-mono focus:outline-none"
                     >
                       <option value="">-- Choose scannable user --</option>
                       {occupants.map(occ => (
@@ -485,10 +486,10 @@ export default function WardenTablet({
                         setTimeout(() => {
                           setIsScanning(false);
                           
-                          // Update status to accounted and read qr payload
+                          // Update status to safe and read qr payload
                           const finalZone = occ.id === "usr_b3c7d6e5" ? "Zone A" : (occ.musterZone || "Zone A");
-                          onUpdateStatus(occ.id, "ACCOUNTED", finalZone, `Interactive QR check-in verified at muster terminal`, false);
-                          onLogEvent(`Warden Tablet scanned dynamic QR Pass for occupant ${occ.id} (${occ.badgeId}). Marked ACCOUNTED in ${finalZone}.`);
+                          onUpdateStatus(occ.id, "SAFE", finalZone, `Interactive QR check-in verified at muster terminal`, false);
+                          onLogEvent(`Warden Tablet scanned dynamic QR Pass for occupant ${occ.id} (${occ.badgeId}). Marked SAFE in ${finalZone}.`);
                           
                           // Also trigger decryption on tablet RAM to simulate premium TLS unsealing
                           if (occ.badgeId) {
@@ -542,7 +543,7 @@ export default function WardenTablet({
                   className="w-12 h-12 rounded-lg object-cover border border-slate-700 bg-slate-800"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold font-sans text-amber-400 flex items-center justify-between">
+                  <div className="text-xs font-bold font-sans text-amber-400 flex items-center justify-between">
                     <span>{decryptedProfile.name}</span>
                     <span className="text-[8px] font-mono text-slate-500">Decrypted</span>
                   </div>
@@ -578,7 +579,7 @@ export default function WardenTablet({
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Search and filtering */}
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-mono tracking-wider text-slate-300 uppercase">Interactive Roster Ledger</h3>
+              <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">Interactive Roster Ledger</h3>
               <div className="relative w-36">
                 <Search className="absolute left-2 top-2 text-slate-500" size={12} />
                 <input
@@ -595,7 +596,7 @@ export default function WardenTablet({
             <div className="grid grid-cols-2 gap-1 mb-2.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800/80">
               <button
                 onClick={() => setActiveTab("MISSING")}
-                className={`py-1.5 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer ${
+                className={`py-1.5 text-[11px] font-mono font-bold rounded-lg transition-all ${
                   activeTab === "MISSING"
                     ? "bg-red-950 text-red-400 border border-red-900/40"
                     : "text-slate-400 hover:text-slate-200"
@@ -604,14 +605,14 @@ export default function WardenTablet({
                 MISSING ({missingCount})
               </button>
               <button
-                onClick={() => setActiveTab("ACCOUNTED")}
-                className={`py-1.5 text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === "ACCOUNTED"
+                onClick={() => setActiveTab("SAFE")}
+                className={`py-1.5 text-[11px] font-mono font-bold rounded-lg transition-all ${
+                  activeTab === "SAFE"
                     ? "bg-emerald-950 text-emerald-400 border border-emerald-900/40"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                ACCOUNTED ({safeCount})
+                SAFE ({safeCount})
               </button>
             </div>
 
@@ -623,20 +624,20 @@ export default function WardenTablet({
                     key={occ.id}
                     onClick={() => requestVaultDecryption(occ.id)}
                     className={`p-2 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${
-                      occ.status === "ACCOUNTED"
+                      occ.status === "SAFE"
                         ? "bg-emerald-950/20 border-emerald-900/30 hover:bg-emerald-900/20"
-                        : occ.status === "MEDICAL"
+                        : occ.status === "CRITICAL"
                         ? "bg-red-950/30 border-red-800/50 hover:bg-red-900/20 animate-pulse"
-                        : occ.status === "ARA_STAGING"
+                        : occ.status === "NEED_HELP"
                         ? "bg-amber-950/30 border-amber-800/50 hover:bg-amber-900/20"
                         : "bg-slate-900/40 border-slate-800/85 hover:bg-slate-850"
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${
-                        occ.status === "ACCOUNTED" ? "bg-emerald-400" :
-                        occ.status === "MEDICAL" ? "bg-red-500" :
-                        occ.status === "ARA_STAGING" ? "bg-blue-400" : "bg-gray-400"
+                        occ.status === "SAFE" ? "bg-emerald-400" :
+                        occ.status === "CRITICAL" ? "bg-red-500" :
+                        occ.status === "NEED_HELP" ? "bg-amber-400" : "bg-gray-400"
                       }`} />
                       <div>
                         <div className="text-[11px] font-mono font-bold text-slate-200">
@@ -659,9 +660,9 @@ export default function WardenTablet({
                     <div className="text-right">
                       <div className="text-[9px] font-mono font-bold text-slate-400">{occ.lastSeen}</div>
                       <span className={`text-[8px] font-bold font-mono uppercase px-1.5 py-0.2 rounded mt-1 inline-block ${
-                        occ.status === "ACCOUNTED" ? "bg-emerald-950 text-emerald-400" :
-                        occ.status === "MEDICAL" ? "bg-red-950 text-red-400 border border-red-900" :
-                        occ.status === "ARA_STAGING" ? "bg-blue-950 text-blue-400 border border-blue-900" :
+                        occ.status === "SAFE" ? "bg-emerald-950 text-emerald-400" :
+                        occ.status === "CRITICAL" ? "bg-red-950 text-red-400 border border-red-900" :
+                        occ.status === "NEED_HELP" ? "bg-amber-950 text-amber-500 border border-amber-900" :
                         "bg-gray-950 text-gray-400 border border-gray-800"
                       }`}>
                         {occ.status}
