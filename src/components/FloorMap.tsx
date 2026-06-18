@@ -423,6 +423,29 @@ export default function FloorMap({
                   (2) 550 GAL DIESEL TANK
                 </text>
 
+                {/* Sheet annotations transcribed from the FDNY plan */}
+                <text
+                  x="104"
+                  y="86"
+                  fill="#64748b"
+                  fontSize="4.2"
+                  fontFamily="monospace"
+                  textAnchor="middle"
+                >
+                  LOCKED FROM ENTRANCE SIDE
+                </text>
+                <text
+                  x="351"
+                  y="150"
+                  fill="#64748b"
+                  fontSize="4.5"
+                  fontFamily="monospace"
+                  textAnchor="middle"
+                  transform="rotate(90 351 150)"
+                >
+                  ENTRANCE NOT IN USE
+                </text>
+
                 {/* Compass (rotated as on the FDNY sheet: E up, N left, S right, W down) */}
                 <g transform="translate(34, 52)">
                   <circle
