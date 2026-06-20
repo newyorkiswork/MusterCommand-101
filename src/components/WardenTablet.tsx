@@ -1,13 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { z } from "zod";
-import { HardDrive, Search, ShieldAlert, Key, RefreshCw, UserCheck, AlertOctagon, Smartphone, Clock, Radio, QrCode, Camera, ScanLine } from "lucide-react";
+import {
+  HardDrive,
+  Search,
+  ShieldAlert,
+  Key,
+  RefreshCw,
+  UserCheck,
+  AlertOctagon,
+  Smartphone,
+  Clock,
+  Radio,
+  QrCode,
+  Camera,
+  ScanLine,
+  Accessibility,
+} from "lucide-react";
 import { Occupant } from "../types";
 import { validateBadgeSyntax } from "../utils";
 
 // Schema for manual scanner input
-const scannerInputSchema = z.string().refine((val) => validateBadgeSyntax(val), {
-  message: "Invalid badge syntax. Code pattern must match [A-Z]{2}\\d{6}."
-});
+const scannerInputSchema = z
+  .string()
+  .refine((val) => validateBadgeSyntax(val), {
+    message: "Invalid badge syntax. Code pattern must match [A-Z]{2}\\d{6}.",
+  });
 
 interface WardenTabletProps {
   occupants: Occupant[];
@@ -17,7 +34,7 @@ interface WardenTabletProps {
     status: Occupant["status"],
     zone?: string,
     note?: string,
-    fallDetected?: boolean
+    fallDetected?: boolean,
   ) => void;
   onLogEvent: (event: string) => void;
   activeDirective: string;
@@ -37,18 +54,21 @@ export default function WardenTablet({
   isBlackout,
   onUpdateStatus,
   onLogEvent,
-  activeDirective
+  activeDirective,
 }: WardenTabletProps) {
   const [badgeIdField, setBadgeIdField] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"MISSING" | "SAFE">("MISSING");
+  const [activeTab, setActiveTab] = useState<"MISSING" | "SAFE" | "VISITORS">(
+    "MISSING",
+  );
   const [validationError, setValidationError] = useState<string | null>(null);
   const [activeScanMode, setActiveScanMode] = useState<"RFID" | "QR">("RFID");
   const [selectedQrUser, setSelectedQrUser] = useState<string>("");
   const [isScanning, setIsScanning] = useState(false);
-  
+
   // Vault variables kept strictly in component RAM State (Nullified upon clear)
-  const [decryptedProfile, setDecryptedProfile] = useState<DecryptedProfile | null>(null);
+  const [decryptedProfile, setDecryptedProfile] =
+    useState<DecryptedProfile | null>(null);
   const [decryptedToken, setDecryptedToken] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [autoClearTimer, setAutoClearTimer] = useState<number | null>(null);
@@ -66,7 +86,7 @@ export default function WardenTablet({
       simulateBadgeScan(badgeIdField);
     } else {
       if (badgeIdField.length < 8) {
-        setBadgeIdField(prev => prev + val);
+        setBadgeIdField((prev) => prev + val);
       }
     }
   };
@@ -75,26 +95,40 @@ export default function WardenTablet({
   const simulateBadgeScan = async (badgeId: string) => {
     setValidationError(null);
     const cleanBadge = badgeId.toUpperCase().trim();
-    
+
     // Zod validation Layer 1
     const validation = scannerInputSchema.safeParse(cleanBadge);
     if (!validation.success) {
-      setValidationError("Zod rejection: Badge must be 2 uppercase characters + 6 digits (e.g., NW112233)");
-      onLogEvent(`Zod block: Malformed badge entered manually - "${cleanBadge}"`);
+      setValidationError(
+        "Zod rejection: Badge must be 2 uppercase characters + 6 digits (e.g., NW112233)",
+      );
+      onLogEvent(
+        `Zod block: Malformed badge entered manually - "${cleanBadge}"`,
+      );
       return;
     }
 
     // Locate corresponding tokenized occupant
-    const matchedOccupant = occupants.find(occ => occ.badgeId === cleanBadge);
+    const matchedOccupant = occupants.find((occ) => occ.badgeId === cleanBadge);
     if (!matchedOccupant) {
-      setValidationError("Warden DB Warning: Badge ID not found in current Floor 7 pilot index.");
+      setValidationError(
+        "Warden DB Warning: Badge ID not found in current Floor 7 pilot index.",
+      );
       onLogEvent(`Warden error: Scanned unknown badge ${cleanBadge}`);
       return;
     }
 
     // Trigger check-in
-    onUpdateStatus(matchedOccupant.id, "SAFE", "Zone A", "NFC scanned by Warden NW", false);
-    onLogEvent(`Warden NW scanned RFID Badge ${cleanBadge} at Stair A landing: marked SAFE.`);
+    onUpdateStatus(
+      matchedOccupant.id,
+      "SAFE",
+      "Zone A",
+      "NFC scanned by Warden NW",
+      false,
+    );
+    onLogEvent(
+      `Warden NW scanned RFID Badge ${cleanBadge} at Stair A landing: marked SAFE.`,
+    );
 
     // Perform JIT Decryption from Vault Node over simulated TLS 1.3
     requestVaultDecryption(matchedOccupant.id);
@@ -113,8 +147,8 @@ export default function WardenTablet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token: token,
-          requesterId: "warden_NW" // Auth token
-        })
+          requesterId: "warden_NW", // Auth token
+        }),
       });
 
       if (!response.ok) {
@@ -122,7 +156,7 @@ export default function WardenTablet({
       }
 
       const data = await response.json();
-      
+
       // Render JIT details directly into clean, volatile RAM State
       setDecryptedProfile({
         name: data.decrypted.name,
@@ -130,10 +164,12 @@ export default function WardenTablet({
         photo: data.decrypted.photo,
         department: data.decrypted.department,
         phone: data.decrypted.phone,
-        verifiedAt: data.verifiedAt
+        verifiedAt: data.verifiedAt,
       });
 
-      onLogEvent(`Vault authorization valid. Dynamic decryption complete for token ${token}. Rendered strictly in Warden RAM.`);
+      onLogEvent(
+        `Vault authorization valid. Dynamic decryption complete for token ${token}. Rendered strictly in Warden RAM.`,
+      );
 
       // Trigger automatic nullify countdown - 5 seconds
       if (autoClearTimer) clearTimeout(autoClearTimer);
@@ -141,9 +177,10 @@ export default function WardenTablet({
         nullifyMemory();
       }, 5000);
       setAutoClearTimer(timer);
-
     } catch (err: any) {
-      setValidationError("Vault key rotation error: Failed to map JIT decryption.");
+      setValidationError(
+        "Vault key rotation error: Failed to map JIT decryption.",
+      );
     } finally {
       setIsDecrypting(false);
     }
@@ -159,39 +196,61 @@ export default function WardenTablet({
 
   // Attest remaining northwest quadrant occupants safe (OSHA compliance)
   const handleAttestQuadrant = () => {
-    const nwCount = occupants.filter(o => o.quadrant === "NW" && o.status === "MISSING").length;
+    const nwCount = occupants.filter(
+      (o) => o.quadrant === "NW" && o.status === "MISSING",
+    ).length;
     if (nwCount === 0) {
       alert("All NW quadrant occupants are already accounted for!");
       return;
     }
 
-    occupants.forEach(occ => {
+    occupants.forEach((occ) => {
       if (occ.quadrant === "NW" && occ.status === "MISSING") {
-        onUpdateStatus(occ.id, "SAFE", "Zone A", "Quadrant Attestation by Warden NW", false);
+        onUpdateStatus(
+          occ.id,
+          "SAFE",
+          "Zone A",
+          "Quadrant Attestation by Warden NW",
+          false,
+        );
       }
     });
 
-    onLogEvent(`Warden NW issued dynamic Attestation: marked and verified all remaining ${nwCount} Northwest Quadrant occupants SAFE.`);
+    onLogEvent(
+      `Warden NW issued dynamic Attestation: marked and verified all remaining ${nwCount} Northwest Quadrant occupants SAFE.`,
+    );
   };
 
   // Filter lists based on Tab & Search query
-  const filteredOccupants = occupants.filter(occ => {
-    const isTabMatch = activeTab === "SAFE" ? occ.status === "SAFE" : occ.status !== "SAFE";
+  const filteredOccupants = occupants.filter((occ) => {
+    const isTabMatch =
+      activeTab === "SAFE"
+        ? occ.status === "SAFE"
+        : activeTab === "VISITORS"
+          ? Boolean(occ.isVisitor)
+          : occ.status !== "SAFE";
     const cleanQuery = searchQuery.toLowerCase();
-    const isQueryMatch = occ.id.toLowerCase().includes(cleanQuery) || 
-                         occ.badgeId.toLowerCase().includes(cleanQuery) ||
-                         (occ.alertNote && occ.alertNote.toLowerCase().includes(cleanQuery)) ||
-                         occ.role.toLowerCase().includes(cleanQuery) ||
-                         occ.quadrant.toLowerCase().includes(cleanQuery);
+    const isQueryMatch =
+      occ.id.toLowerCase().includes(cleanQuery) ||
+      occ.badgeId.toLowerCase().includes(cleanQuery) ||
+      (occ.alertNote && occ.alertNote.toLowerCase().includes(cleanQuery)) ||
+      occ.role.toLowerCase().includes(cleanQuery) ||
+      occ.quadrant.toLowerCase().includes(cleanQuery);
     return isTabMatch && isQueryMatch;
   });
 
-  const missingCount = occupants.filter(o => o.status !== "SAFE").length;
-  const safeCount = occupants.filter(o => o.status === "SAFE").length;
+  const missingCount = occupants.filter((o) => o.status !== "SAFE").length;
+  const safeCount = occupants.filter((o) => o.status === "SAFE").length;
+  const visitorCount = occupants.filter((o) => Boolean(o.isVisitor)).length;
+  const visitorUnaccounted = occupants.filter(
+    (o) => o.isVisitor && o.status !== "SAFE",
+  ).length;
+  const araAll = occupants.filter((o) => o.mobilityImpaired || o.isAtARA);
+  const araInTransit = araAll.filter((o) => !o.isAtARA);
+  const araStaged = araAll.filter((o) => Boolean(o.isAtARA));
 
   return (
     <div className="w-full bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-2xl flex flex-col h-[710px] relative text-slate-100 overflow-hidden">
-      
       {/* Kiosk Status Header */}
       <div className="flex justify-between items-center border-b border-slate-850 pb-3 mb-3">
         <div>
@@ -213,27 +272,43 @@ export default function WardenTablet({
               ● REAL-TIME CLOUD
             </span>
           )}
-          <span className="text-[11px] font-mono text-slate-400">Bat: 100% ⚡</span>
+          <span className="text-[11px] font-mono text-slate-400">
+            Bat: 100% ⚡
+          </span>
         </div>
       </div>
 
       {/* Real-time Emergency SOS Alert Notice Banner */}
-      {occupants.some(o => o.status === "CRITICAL") && (
-        <div className="bg-red-950/90 border border-red-500 rounded-2xl p-3 mb-3 text-xs flex flex-col gap-2 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse" id="warden-sos-banner">
+      {occupants.some((o) => o.status === "CRITICAL") && (
+        <div
+          className="bg-red-950/90 border border-red-500 rounded-2xl p-3 mb-3 text-xs flex flex-col gap-2 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse"
+          id="warden-sos-banner"
+        >
           <div className="flex items-start justify-between gap-2.5">
             <div className="flex items-start gap-2">
-              <AlertOctagon className="text-red-500 shrink-0 mt-0.5" size={16} />
+              <AlertOctagon
+                className="text-red-500 shrink-0 mt-0.5"
+                size={16}
+              />
               <div className="flex-1">
-                <span className="text-[9px] font-mono font-bold text-red-400 uppercase tracking-widest block mb-0.5">⚠️ PRIORITY SOS PANIC ACTIVE</span>
+                <span className="text-[9px] font-mono font-bold text-red-400 uppercase tracking-widest block mb-0.5">
+                  ⚠️ PRIORITY SOS PANIC ACTIVE
+                </span>
                 <p className="text-slate-205 font-sans text-[11px] leading-relaxed">
-                  Crisis beacon active for occupant <span className="font-bold text-white bg-red-900/60 px-1.5 py-0.5 rounded font-mono select-all ml-0.5">{occupants.find(o => o.status === "CRITICAL")?.id}</span>.
-                  Device tilt sensor registered emergency trigger. Immediate deployment/response recommended.
+                  Crisis beacon active for occupant{" "}
+                  <span className="font-bold text-white bg-red-900/60 px-1.5 py-0.5 rounded font-mono select-all ml-0.5">
+                    {occupants.find((o) => o.status === "CRITICAL")?.id}
+                  </span>
+                  . Device tilt sensor registered emergency trigger. Immediate
+                  deployment/response recommended.
                 </p>
               </div>
             </div>
             <button
               onClick={() => {
-                const emergencyUserId = occupants.find(o => o.status === "CRITICAL")?.id;
+                const emergencyUserId = occupants.find(
+                  (o) => o.status === "CRITICAL",
+                )?.id;
                 if (emergencyUserId) {
                   setActiveTab("MISSING");
                   requestVaultDecryption(emergencyUserId);
@@ -251,14 +326,22 @@ export default function WardenTablet({
       {/* Active F-89 Strategic Directive Banner */}
       <div className="bg-gradient-to-r from-red-950/40 to-amber-950/30 border border-amber-900/40 rounded-2xl p-3 mb-3 text-xs flex flex-col gap-2 shadow-inner">
         <div className="flex-1">
-          <span className="text-[9px] font-mono font-bold text-amber-500 uppercase tracking-widest block mb-1">🚨 FDNY DIRECTIVE FROM FSD CORE STATION</span>
-          <p className="text-slate-100 font-sans text-[11px] font-semibold leading-relaxed">{activeDirective}</p>
+          <span className="text-[9px] font-mono font-bold text-amber-500 uppercase tracking-widest block mb-1">
+            🚨 FDNY DIRECTIVE FROM FSD CORE STATION
+          </span>
+          <p className="text-slate-100 font-sans text-[11px] font-semibold leading-relaxed">
+            {activeDirective}
+          </p>
         </div>
         <div className="flex gap-1.5 justify-end">
           <button
             onClick={() => {
-              onLogEvent("Warden NW acknowledged F-89 directive and deployed tactical sweep.");
-              alert("Strategic directive acknowledged. Logged to BLE Mesh Ledger.");
+              onLogEvent(
+                "Warden NW acknowledged F-89 directive and deployed tactical sweep.",
+              );
+              alert(
+                "Strategic directive acknowledged. Logged to BLE Mesh Ledger.",
+              );
             }}
             className="bg-amber-600 hover:bg-amber-550 border border-amber-500/20 text-slate-950 px-2.5 py-1.5 rounded-lg text-[9.5px] font-mono font-bold uppercase transition-all active:scale-95 cursor-pointer"
           >
@@ -266,8 +349,12 @@ export default function WardenTablet({
           </button>
           <button
             onClick={() => {
-              onLogEvent("Warden NW completed tactical sweep: NORTHWEST SECTOR CONFIRMED 100% CLEAR OF PERSONNEL.");
-              alert("Northwest sector sweep confirmation dispatched over primary/mesh routing.");
+              onLogEvent(
+                "Warden NW completed tactical sweep: NORTHWEST SECTOR CONFIRMED 100% CLEAR OF PERSONNEL.",
+              );
+              alert(
+                "Northwest sector sweep confirmation dispatched over primary/mesh routing.",
+              );
             }}
             className="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-emerald-400 px-2.5 py-1.5 rounded-lg text-[9.5px] font-mono font-bold uppercase transition-all active:scale-95 cursor-pointer"
           >
@@ -277,15 +364,16 @@ export default function WardenTablet({
       </div>
 
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 overflow-hidden mb-3">
-        
         {/* LEFT COLUMN: SCANNER & Keypad input (5 Columns) */}
         <div className="md:col-span-6 bg-slate-950/70 rounded-2xl border border-slate-800/80 p-3.5 flex flex-col justify-between overflow-y-auto no-scrollbar">
-          
           <div>
             {/* Segment Tab Selector */}
             <div className="grid grid-cols-2 gap-1 p-1 bg-slate-900/90 border border-slate-800 rounded-xl mb-3 shrink-0 col-span-2">
               <button
-                onClick={() => { setActiveScanMode("RFID"); setValidationError(null); }}
+                onClick={() => {
+                  setActiveScanMode("RFID");
+                  setValidationError(null);
+                }}
                 className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all uppercase cursor-pointer ${
                   activeScanMode === "RFID"
                     ? "bg-slate-800 text-slate-100 border border-slate-700 shadow"
@@ -296,7 +384,10 @@ export default function WardenTablet({
                 📟 RFID Keypad
               </button>
               <button
-                onClick={() => { setActiveScanMode("QR"); setValidationError(null); }}
+                onClick={() => {
+                  setActiveScanMode("QR");
+                  setValidationError(null);
+                }}
                 className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all uppercase flex items-center justify-center gap-1 cursor-pointer ${
                   activeScanMode === "QR"
                     ? "bg-slate-800 text-slate-100 border border-slate-700 shadow"
@@ -312,7 +403,9 @@ export default function WardenTablet({
             {activeScanMode === "RFID" ? (
               <>
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">RFID Badge Gateway</h3>
+                  <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">
+                    RFID Badge Gateway
+                  </h3>
                   <span className="text-[9px] bg-indigo-950/90 text-indigo-400 border border-indigo-900/50 px-1.5 py-0.2 rounded font-mono">
                     HMAC-SHA256
                   </span>
@@ -320,9 +413,16 @@ export default function WardenTablet({
 
                 {/* Tap Badge graphic & simple search bar */}
                 <div className="bg-slate-900/60 border border-dashed border-slate-800 rounded-xl p-3.5 text-center mb-3">
-                  <Smartphone className="mx-auto text-amber-500 animate-bounce mb-1" size={24} />
-                  <span className="text-[10px] block font-mono text-slate-400 uppercase tracking-widest">TAP OCCUPANT ID BADGE</span>
-                  <p className="text-[9px] text-slate-500 mt-1">Simulates NFC loop verification protocol.</p>
+                  <Smartphone
+                    className="mx-auto text-amber-500 animate-bounce mb-1"
+                    size={24}
+                  />
+                  <span className="text-[10px] block font-mono text-slate-400 uppercase tracking-widest">
+                    TAP OCCUPANT ID BADGE
+                  </span>
+                  <p className="text-[9px] text-slate-500 mt-1">
+                    Simulates NFC loop verification protocol.
+                  </p>
                 </div>
 
                 {/* Keypad entry input */}
@@ -338,7 +438,7 @@ export default function WardenTablet({
 
                 {/* Keypad grids */}
                 <div className="grid grid-cols-4 gap-1.5 max-w-[250px] mx-auto mb-3">
-                  {["NW", "FA", "HR", "LS"].map(pfx => (
+                  {["NW", "FA", "HR", "LS"].map((pfx) => (
                     <button
                       key={pfx}
                       onClick={() => setBadgeInputCombined(pfx)}
@@ -347,7 +447,7 @@ export default function WardenTablet({
                       {pfx}
                     </button>
                   ))}
-                  {["1", "2", "3", "4"].map(num => (
+                  {["1", "2", "3", "4"].map((num) => (
                     <button
                       key={num}
                       onClick={() => handleKeypadPress(num)}
@@ -356,7 +456,7 @@ export default function WardenTablet({
                       {num}
                     </button>
                   ))}
-                  {["5", "6", "7", "8"].map(num => (
+                  {["5", "6", "7", "8"].map((num) => (
                     <button
                       key={num}
                       onClick={() => handleKeypadPress(num)}
@@ -366,7 +466,7 @@ export default function WardenTablet({
                     </button>
                   ))}
                   <div className="col-span-4 grid grid-cols-4 gap-1.5">
-                    {["9", "0"].map(num => (
+                    {["9", "0"].map((num) => (
                       <button
                         key={num}
                         onClick={() => handleKeypadPress(num)}
@@ -394,13 +494,19 @@ export default function WardenTablet({
               /* QR CODE SCANNER VIEWPORT */
               <div className="space-y-3 animate-fadeIn">
                 <div className="flex justify-between items-center bg-slate-900 p-2 rounded-xl border border-slate-800">
-                  <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">Muster Scan Reader</h3>
-                  <span className={`text-[9px] border px-1.5 py-0.5 rounded font-mono font-bold ${
-                    isScanning 
-                      ? "bg-amber-950 text-amber-400 border-amber-800 animate-pulse" 
-                      : "bg-emerald-950 text-emerald-400 border-emerald-800/40 animate-pulse"
-                  }`}>
-                    {isScanning ? "DECIPHERING ENVELOPE..." : "READY TO ACQUIRE"}
+                  <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">
+                    Muster Scan Reader
+                  </h3>
+                  <span
+                    className={`text-[9px] border px-1.5 py-0.5 rounded font-mono font-bold ${
+                      isScanning
+                        ? "bg-amber-950 text-amber-400 border-amber-800 animate-pulse"
+                        : "bg-emerald-950 text-emerald-400 border-emerald-800/40 animate-pulse"
+                    }`}
+                  >
+                    {isScanning
+                      ? "DECIPHERING ENVELOPE..."
+                      : "READY TO ACQUIRE"}
                   </span>
                 </div>
 
@@ -413,7 +519,13 @@ export default function WardenTablet({
                   <div className="border-b-2 border-r-2 border-emerald-500 w-5 h-5 absolute bottom-3 right-3" />
 
                   {/* Laser line moving across */}
-                  <div className="absolute left-0 right-0 h-[1.5px] bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse" style={{ top: isScanning ? "55%" : "35%", transition: "all 0.5s ease" }} />
+                  <div
+                    className="absolute left-0 right-0 h-[1.5px] bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse"
+                    style={{
+                      top: isScanning ? "55%" : "35%",
+                      transition: "all 0.5s ease",
+                    }}
+                  />
 
                   {/* Top Feed Telemetry Overlay */}
                   <div className="w-full flex justify-between items-start text-[8px] text-emerald-500/80 uppercase tracking-wider select-none z-10">
@@ -437,7 +549,10 @@ export default function WardenTablet({
                       <div className="w-4 h-4 border border-emerald-400" />
                       <div className="w-4 h-4 border border-emerald-400" />
                     </div>
-                    <Camera className={`${isScanning ? "text-amber-400 scale-125" : "text-emerald-500/60"} absolute transition-all duration-300`} size={24} />
+                    <Camera
+                      className={`${isScanning ? "text-amber-400 scale-125" : "text-emerald-500/60"} absolute transition-all duration-300`}
+                      size={24}
+                    />
                     {isScanning && (
                       <div className="absolute inset-0 bg-emerald-500/15 flex items-center justify-center font-mono text-[9px] text-emerald-400 font-bold backdrop-blur-xs">
                         ACQUIRING...
@@ -447,15 +562,21 @@ export default function WardenTablet({
 
                   {/* Bottom Guide Text */}
                   <div className="w-full text-center z-10 select-none">
-                    <span className="text-[9px] block text-emerald-400 font-bold uppercase tracking-widest leading-none">ALIGN ENCRYPTED PASS QR</span>
-                    <p className="text-[7.5px] text-slate-500 mt-1 leading-none uppercase">SUPPORTED PROTOCOL: CRYPTO-MUSTER v2</p>
+                    <span className="text-[9px] block text-emerald-400 font-bold uppercase tracking-widest leading-none">
+                      ALIGN ENCRYPTED PASS QR
+                    </span>
+                    <p className="text-[7.5px] text-slate-500 mt-1 leading-none uppercase">
+                      SUPPORTED PROTOCOL: CRYPTO-MUSTER v2
+                    </p>
                   </div>
                 </div>
 
                 {/* Selected user qr code emulator selector */}
                 <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/60 space-y-2">
-                  <label className="block text-[9px] font-mono uppercase text-slate-400">Target Mobile Occupant to Scan:</label>
-                  
+                  <label className="block text-[9px] font-mono uppercase text-slate-400">
+                    Target Mobile Occupant to Scan:
+                  </label>
+
                   <div className="flex gap-1.5">
                     <select
                       value={selectedQrUser}
@@ -463,19 +584,23 @@ export default function WardenTablet({
                       className="flex-1 bg-slate-950 border border-slate-805 rounded-lg px-2 py-1 text-xs text-slate-350 font-mono focus:outline-none"
                     >
                       <option value="">-- Choose scannable user --</option>
-                      {occupants.map(occ => (
+                      {occupants.map((occ) => (
                         <option key={occ.id} value={occ.id}>
-                          {occ.id === decryptedToken && decryptedProfile ? `${decryptedProfile.name} [${occ.id}]` : `${occ.id} - ${occ.status}`}
+                          {occ.id === decryptedToken && decryptedProfile
+                            ? `${decryptedProfile.name} [${occ.id}]`
+                            : `${occ.id} - ${occ.status}`}
                         </option>
                       ))}
                     </select>
-                    
+
                     <button
                       onClick={() => {
                         const targetId = selectedQrUser || "usr_b3c7d6e5"; // Default mock Alice, which is the user on phone
-                        const occ = occupants.find(o => o.id === targetId);
+                        const occ = occupants.find((o) => o.id === targetId);
                         if (!occ) {
-                          setValidationError("No target occupant selected to simulate QR acquisition.");
+                          setValidationError(
+                            "No target occupant selected to simulate QR acquisition.",
+                          );
                           return;
                         }
 
@@ -485,12 +610,23 @@ export default function WardenTablet({
 
                         setTimeout(() => {
                           setIsScanning(false);
-                          
+
                           // Update status to safe and read qr payload
-                          const finalZone = occ.id === "usr_b3c7d6e5" ? "Zone A" : (occ.musterZone || "Zone A");
-                          onUpdateStatus(occ.id, "SAFE", finalZone, `Interactive QR check-in verified at muster terminal`, false);
-                          onLogEvent(`Warden Tablet scanned dynamic QR Pass for occupant ${occ.id} (${occ.badgeId}). Marked SAFE in ${finalZone}.`);
-                          
+                          const finalZone =
+                            occ.id === "usr_b3c7d6e5"
+                              ? "Zone A"
+                              : occ.musterZone || "Zone A";
+                          onUpdateStatus(
+                            occ.id,
+                            "SAFE",
+                            finalZone,
+                            `Interactive QR check-in verified at muster terminal`,
+                            false,
+                          );
+                          onLogEvent(
+                            `Warden Tablet scanned dynamic QR Pass for occupant ${occ.id} (${occ.badgeId}). Marked SAFE in ${finalZone}.`,
+                          );
+
                           // Also trigger decryption on tablet RAM to simulate premium TLS unsealing
                           if (occ.badgeId) {
                             setBadgeIdField(occ.badgeId);
@@ -504,7 +640,9 @@ export default function WardenTablet({
                     </button>
                   </div>
                   <p className="text-[8.5px] text-indigo-400 font-mono leading-tight">
-                    💡 Tip: Alice (usr_b3c7d6e5) is the mock user on the left mobile device. Customize her options on the phone, generate the QR Pass, then scan her instantly here!
+                    💡 Tip: Alice (usr_b3c7d6e5) is the mock user on the left
+                    mobile device. Customize her options on the phone, generate
+                    the QR Pass, then scan her instantly here!
                   </p>
                 </div>
               </div>
@@ -531,8 +669,13 @@ export default function WardenTablet({
 
             {isDecrypting ? (
               <div className="text-center py-4 space-y-2">
-                <RefreshCw size={18} className="animate-spin mx-auto text-amber-500" />
-                <span className="text-[10px] font-mono text-slate-400">Unsealing key map via TLS 1.3...</span>
+                <RefreshCw
+                  size={18}
+                  className="animate-spin mx-auto text-amber-500"
+                />
+                <span className="text-[10px] font-mono text-slate-400">
+                  Unsealing key map via TLS 1.3...
+                </span>
               </div>
             ) : decryptedProfile ? (
               <div className="text-gray-200 flex items-start gap-3 mt-1.5 animate-fadeIn">
@@ -545,12 +688,20 @@ export default function WardenTablet({
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold font-sans text-amber-400 flex items-center justify-between">
                     <span>{decryptedProfile.name}</span>
-                    <span className="text-[8px] font-mono text-slate-500">Decrypted</span>
+                    <span className="text-[8px] font-mono text-slate-500">
+                      Decrypted
+                    </span>
                   </div>
-                  <div className="text-[10px] text-slate-300 font-medium">{decryptedProfile.role}</div>
-                  <div className="text-[9px] text-slate-400 font-mono mt-0.5">{decryptedProfile.department}</div>
-                  <div className="text-[9px] text-slate-400 font-mono">{decryptedProfile.phone}</div>
-                  
+                  <div className="text-[10px] text-slate-300 font-medium">
+                    {decryptedProfile.role}
+                  </div>
+                  <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                    {decryptedProfile.department}
+                  </div>
+                  <div className="text-[9px] text-slate-400 font-mono">
+                    {decryptedProfile.phone}
+                  </div>
+
                   {/* Dynamic clear badge */}
                   <div className="flex justify-between items-center mt-2 bg-slate-950/80 p-1 rounded border border-slate-800">
                     <span className="text-[8px] text-yellow-500 font-mono flex items-center gap-0.5">
@@ -567,7 +718,8 @@ export default function WardenTablet({
               </div>
             ) : (
               <div className="text-center py-4 text-slate-500 font-mono text-[9px]">
-                No active decryption lease in storage. Scanned cards will unseal a 5s memory leak-proof profile view.
+                No active decryption lease in storage. Scanned cards will unseal
+                a 5s memory leak-proof profile view.
               </div>
             )}
           </div>
@@ -575,13 +727,17 @@ export default function WardenTablet({
 
         {/* RIGHT COLUMN: ROSTER LIST (7 Columns) */}
         <div className="md:col-span-6 bg-slate-950/70 rounded-2xl border border-slate-800/80 p-3.5 flex flex-col justify-between overflow-hidden">
-          
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Search and filtering */}
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">Interactive Roster Ledger</h3>
+              <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">
+                Interactive Roster Ledger
+              </h3>
               <div className="relative w-36">
-                <Search className="absolute left-2 top-2 text-slate-500" size={12} />
+                <Search
+                  className="absolute left-2 top-2 text-slate-500"
+                  size={12}
+                />
                 <input
                   type="text"
                   placeholder="Filter occupant..."
@@ -592,11 +748,40 @@ export default function WardenTablet({
               </div>
             </div>
 
+            {/* ARA Evac-Chair strip — always visible to warden */}
+            {araAll.length > 0 && (
+              <div className="mb-2 shrink-0 bg-amber-950/30 border border-amber-800/50 rounded-xl p-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Accessibility
+                    size={12}
+                    className="text-amber-400 shrink-0"
+                  />
+                  <span className="text-[9px] font-mono font-bold text-amber-300 uppercase tracking-wide">
+                    ♿ ARA — Evac-Chair
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {araInTransit.length > 0 && (
+                    <span className="text-[7.5px] font-mono font-bold bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded uppercase animate-pulse">
+                      {araInTransit.length} IN TRANSIT
+                    </span>
+                  )}
+                  <span className="text-[7.5px] font-mono font-bold bg-blue-950 text-blue-300 border border-blue-800 px-1.5 py-0.5 rounded uppercase">
+                    {araStaged.length} STAGED
+                  </span>
+                  <span className="text-[7.5px] font-mono text-amber-500 border border-amber-900 bg-amber-950/40 px-1.5 py-0.5 rounded uppercase">
+                    {araAll.length} TOTAL
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Missing vs Safe tabs */}
-            <div className="grid grid-cols-2 gap-1 mb-2.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800/80">
+            <div className="grid grid-cols-3 gap-1 mb-2.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800/80">
               <button
+                type="button"
                 onClick={() => setActiveTab("MISSING")}
-                className={`py-1.5 text-[11px] font-mono font-bold rounded-lg transition-all ${
+                className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all ${
                   activeTab === "MISSING"
                     ? "bg-red-950 text-red-400 border border-red-900/40"
                     : "text-slate-400 hover:text-slate-200"
@@ -605,8 +790,22 @@ export default function WardenTablet({
                 MISSING ({missingCount})
               </button>
               <button
+                type="button"
+                onClick={() => setActiveTab("VISITORS")}
+                className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all flex items-center justify-center gap-0.5 ${
+                  activeTab === "VISITORS"
+                    ? "bg-amber-950 text-amber-400 border border-amber-900/40"
+                    : visitorUnaccounted > 0
+                      ? "text-amber-500 hover:text-amber-300"
+                      : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                VISITORS ({visitorCount})
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab("SAFE")}
-                className={`py-1.5 text-[11px] font-mono font-bold rounded-lg transition-all ${
+                className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all ${
                   activeTab === "SAFE"
                     ? "bg-emerald-950 text-emerald-400 border border-emerald-900/40"
                     : "text-slate-400 hover:text-slate-200"
@@ -619,7 +818,7 @@ export default function WardenTablet({
             {/* Scrollable roster items list */}
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 no-scrollbar">
               {filteredOccupants.length > 0 ? (
-                filteredOccupants.map(occ => (
+                filteredOccupants.map((occ) => (
                   <div
                     key={occ.id}
                     onClick={() => requestVaultDecryption(occ.id)}
@@ -627,27 +826,42 @@ export default function WardenTablet({
                       occ.status === "SAFE"
                         ? "bg-emerald-950/20 border-emerald-900/30 hover:bg-emerald-900/20"
                         : occ.status === "CRITICAL"
-                        ? "bg-red-950/30 border-red-800/50 hover:bg-red-900/20 animate-pulse"
-                        : occ.status === "NEED_HELP"
-                        ? "bg-amber-950/30 border-amber-800/50 hover:bg-amber-900/20"
-                        : "bg-slate-900/40 border-slate-800/85 hover:bg-slate-850"
+                          ? "bg-red-950/30 border-red-800/50 hover:bg-red-900/20 animate-pulse"
+                          : occ.status === "NEED_HELP"
+                            ? "bg-amber-950/30 border-amber-800/50 hover:bg-amber-900/20"
+                            : "bg-slate-900/40 border-slate-800/85 hover:bg-slate-850"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        occ.status === "SAFE" ? "bg-emerald-400" :
-                        occ.status === "CRITICAL" ? "bg-red-500" :
-                        occ.status === "NEED_HELP" ? "bg-amber-400" : "bg-gray-400"
-                      }`} />
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          occ.status === "SAFE"
+                            ? "bg-emerald-400"
+                            : occ.status === "CRITICAL"
+                              ? "bg-red-500"
+                              : occ.status === "NEED_HELP"
+                                ? "bg-amber-400"
+                                : "bg-gray-400"
+                        }`}
+                      />
                       <div>
                         <div className="text-[11px] font-mono font-bold text-slate-200">
-                          {occ.id === decryptedToken && decryptedProfile ? decryptedProfile.name : occ.nameEncrypted}
-                          <span className="text-[8px] font-normal text-slate-400 bg-slate-850 border border-slate-800/80 px-1 rounded ml-1.5 font-mono">{occ.id}</span>
+                          {occ.id === decryptedToken && decryptedProfile
+                            ? decryptedProfile.name
+                            : occ.nameEncrypted}
+                          <span className="text-[8px] font-normal text-slate-400 bg-slate-850 border border-slate-800/80 px-1 rounded ml-1.5 font-mono">
+                            {occ.id}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[9px] text-slate-400">
+                        <div className="flex items-center gap-2 mt-0.5 text-[9px] text-slate-400 flex-wrap">
                           <span>Badge: {occ.badgeId}</span>
                           <span>|</span>
                           <span>Quadrant: {occ.quadrant}</span>
+                          {occ.isVisitor && (
+                            <span className="text-[7.5px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-800/60 px-1 py-0.5 rounded uppercase">
+                              VISITOR
+                            </span>
+                          )}
                         </div>
                         {occ.alertNote && (
                           <div className="text-[8.5px] text-amber-300 font-medium italic mt-0.5 line-clamp-1">
@@ -658,13 +872,20 @@ export default function WardenTablet({
                     </div>
 
                     <div className="text-right">
-                      <div className="text-[9px] font-mono font-bold text-slate-400">{occ.lastSeen}</div>
-                      <span className={`text-[8px] font-bold font-mono uppercase px-1.5 py-0.2 rounded mt-1 inline-block ${
-                        occ.status === "SAFE" ? "bg-emerald-950 text-emerald-400" :
-                        occ.status === "CRITICAL" ? "bg-red-950 text-red-400 border border-red-900" :
-                        occ.status === "NEED_HELP" ? "bg-amber-950 text-amber-500 border border-amber-900" :
-                        "bg-gray-950 text-gray-400 border border-gray-800"
-                      }`}>
+                      <div className="text-[9px] font-mono font-bold text-slate-400">
+                        {occ.lastSeen}
+                      </div>
+                      <span
+                        className={`text-[8px] font-bold font-mono uppercase px-1.5 py-0.2 rounded mt-1 inline-block ${
+                          occ.status === "SAFE"
+                            ? "bg-emerald-950 text-emerald-400"
+                            : occ.status === "CRITICAL"
+                              ? "bg-red-950 text-red-400 border border-red-900"
+                              : occ.status === "NEED_HELP"
+                                ? "bg-amber-950 text-amber-500 border border-amber-900"
+                                : "bg-gray-950 text-gray-400 border border-gray-800"
+                        }`}
+                      >
                         {occ.status}
                       </span>
                     </div>
@@ -689,8 +910,12 @@ export default function WardenTablet({
             </button>
             <button
               onClick={() => {
-                onLogEvent("Warden NW issued priority HOST notification: REQUESTING PARAMEDIC BACKUP NEAR SE QUADRANT COMPARTMENT.");
-                alert("Incident Host successfully notified via Bluetooth Mesh packet sync!");
+                onLogEvent(
+                  "Warden NW issued priority HOST notification: REQUESTING PARAMEDIC BACKUP NEAR SE QUADRANT COMPARTMENT.",
+                );
+                alert(
+                  "Incident Host successfully notified via Bluetooth Mesh packet sync!",
+                );
               }}
               className="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 text-[10px] font-mono font-bold py-2 rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95"
             >
@@ -699,7 +924,6 @@ export default function WardenTablet({
             </button>
           </div>
         </div>
-
       </div>
 
       {/* Sync footer */}
