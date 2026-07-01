@@ -2,20 +2,22 @@ import React, { useState } from "react";
 import { z } from "zod";
 import {
   ShieldCheck,
-  Eye,
-  EyeOff,
   Activity,
   AlertTriangle,
   CheckCircle,
   Wifi,
   Flame,
-  RotateCcw,
   QrCode,
   ScanLine,
   Navigation,
   ChevronRight,
   DoorOpen,
   MapPin,
+  User,
+  Radio,
+  Map,
+  Maximize2,
+  X,
 } from "lucide-react";
 import { Occupant } from "../types";
 import { sanitizeText, validateBadgeSyntax } from "../utils";
@@ -24,7 +26,7 @@ import { sanitizeText, validateBadgeSyntax } from "../utils";
 const alertFormSchema = z.object({
   badgeId: z.string().refine((val) => validateBadgeSyntax(val), {
     message:
-      "Invalid format. Must be 2 uppercase letters followed by 6 numbers (e.g., NW112233).",
+      "Invalid format. Must be 2 uppercase letters + 6 numbers (e.g., NW112233).",
   }),
   note: z.string().max(200, "Notes cannot exceed 200 characters."),
 });
@@ -43,29 +45,23 @@ interface OccupantMobileProps {
   activeDirective: string;
 }
 
-// Deterministic QR code matrix generator for high-fidelity offline verification simulation
+// Deterministic QR code matrix generator
 const generateQRMatrix = (payload: string): boolean[][] => {
   const size = 16;
   const matrix: boolean[][] = Array.from({ length: size }, () =>
     Array(size).fill(false),
   );
-
-  // Deterministic seed from payload string
   let seed = 0;
   for (let i = 0; i < payload.length; i++) {
     seed = (seed << 5) - seed + payload.charCodeAt(i);
-    seed |= 0; // Convert to 32bit integer
+    seed |= 0;
   }
-
-  // Simple pseudo-random generator from seed
   const random = () => {
     const x = Math.sin(seed++) * 10000;
     return x - Math.floor(x) > 0.5;
   };
-
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
-      // Top-left finder pattern (4x4)
       if (r < 4 && c < 4) {
         matrix[r][c] =
           r === 0 ||
@@ -78,7 +74,6 @@ const generateQRMatrix = (payload: string): boolean[][] => {
           (r === 2 && c === 2);
         continue;
       }
-      // Top-right finder pattern
       if (r < 4 && c >= size - 4) {
         const mc = c - (size - 4);
         matrix[r][c] =
@@ -92,7 +87,6 @@ const generateQRMatrix = (payload: string): boolean[][] => {
           (r === 2 && mc === 2);
         continue;
       }
-      // Bottom-left finder pattern
       if (r >= size - 4 && c < 4) {
         const mr = r - (size - 4);
         matrix[r][c] =
@@ -106,22 +100,45 @@ const generateQRMatrix = (payload: string): boolean[][] => {
           (mr === 2 && c === 2);
         continue;
       }
-
-      // Timing pattern (vertical and horizontal dashed lines)
       if (r === 5 || c === 5) {
         matrix[r][c] = (r + c) % 2 === 0;
         continue;
       }
-
-      // Fill rest pseudo-randomly
       matrix[r][c] = random();
     }
   }
-
-  // Ensure central finders are aligned correctly
   return matrix;
 };
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const STATUS_CONFIG = {
+  SAFE: {
+    bg: "bg-emerald-600",
+    text: "text-white",
+    label: "SAFE",
+    card: "bg-emerald-50 border-emerald-200",
+  },
+  MISSING: {
+    bg: "bg-slate-500",
+    text: "text-white",
+    label: "MISSING",
+    card: "bg-slate-100 border-slate-300",
+  },
+  NEED_HELP: {
+    bg: "bg-amber-600",
+    text: "text-white",
+    label: "NEED HELP",
+    card: "bg-amber-50 border-amber-200",
+  },
+  CRITICAL: {
+    bg: "bg-red-600",
+    text: "text-white",
+    label: "CRITICAL",
+    card: "bg-red-50 border-red-300",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 export default function OccupantMobile({
   occupant,
   isBlackout,
@@ -129,33 +146,30 @@ export default function OccupantMobile({
   stairBBlocked,
   activeDirective,
 }: OccupantMobileProps) {
-  const [activeScreen, setActiveScreen] = useState<"FORM" | "QR_PASS">("FORM");
+  const [activeScreen, setActiveScreen] = useState<"PROTOCOL" | "QR_PASS">(
+    "PROTOCOL",
+  );
   const [badgeInput, setBadgeInput] = useState("");
   const [alertNote, setAlertNote] = useState("");
   const [selectedZone, setSelectedZone] = useState("Zone A");
   const [isFallSensorEnabled, setIsFallSensorEnabled] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showBuildingMap, setShowBuildingMap] = useState(false);
 
-  // Zod manual validation & XSS sanitization
+  // ── Handlers (all logic preserved) ─────────────────────────────────────────
   const handleCheckIn = (status: "SAFE" | "NEED_HELP") => {
     setValidationError(null);
     setStatusMessage(null);
-
-    // Zod Validation Parse
     const result = alertFormSchema.safeParse({
       badgeId: badgeInput.toUpperCase().trim() || occupant.badgeId,
       note: alertNote,
     });
-
     if (!result.success) {
       setValidationError(result.error.issues[0].message);
       return;
     }
-
-    // Layer 1 DOMPurify alternative - stripping scripts
     const safeNote = sanitizeText(alertNote);
-
     onUpdateStatus(
       occupant.id,
       status,
@@ -163,387 +177,602 @@ export default function OccupantMobile({
       status === "NEED_HELP" ? safeNote : undefined,
       isFallSensorEnabled,
     );
-
-    // Dynamic state messaging based on network context
-    if (isBlackout) {
-      setStatusMessage(
-        `Mesh Packets Encrypted & Broadcasted! HMAC code: ${Math.random().toString(16).substring(2, 10).toUpperCase()}`,
-      );
-    } else {
-      setStatusMessage(
-        "Status successfully logged to centralized Firestore ledger.",
-      );
-    }
+    setStatusMessage(
+      isBlackout
+        ? `BLE Mesh packet sent. HMAC: ${Math.random().toString(16).substring(2, 10).toUpperCase()}`
+        : "Status logged to the secure chain.",
+    );
   };
 
   const toggleFallSensor = () => {
     const newVal = !isFallSensorEnabled;
     setIsFallSensorEnabled(newVal);
-
-    // Automatically trigger CRITICAL status on fall sensors
     if (newVal) {
       onUpdateStatus(
         occupant.id,
         "CRITICAL",
         selectedZone,
-        "Automatic Fall Sensor Alarm triggered.",
+        "Fall sensor triggered.",
         true,
       );
-      setStatusMessage("Critical telemetry sent: Fall coordinates compiled.");
+      setStatusMessage("⚠️ Fall alert broadcast to FSD Red List.");
     } else {
       onUpdateStatus(occupant.id, "SAFE", selectedZone, undefined, false);
-      setStatusMessage("Fall status reset safe.");
+      setStatusMessage("Fall sensor reset — status set to SAFE.");
     }
   };
 
-  // Generate dynamic payload for current check-in state
+  // ── Derived ─────────────────────────────────────────────────────────────────
   const qrPayload = `TOKEN:${occupant.id}|STATUS:${occupant.status}|ZONE:${selectedZone}|BADGE:${badgeInput || occupant.badgeId}|SEC:${isBlackout ? "MESH_HMAC" : "TLS_1.3"}`;
   const qrGrid = generateQRMatrix(qrPayload);
+  const checkedIn = occupant.status === "SAFE";
+  const sc = STATUS_CONFIG[occupant.status] ?? STATUS_CONFIG.MISSING;
 
-  // Short, human assembly-point labels used by the clear-path step strip.
-  const ZONE_LABELS: Record<string, string> = {
-    "Zone A": "Zone A · Union Sq",
-    "Zone B": "Zone B · 14th St",
-    "Zone C": "Zone C · 15th St",
-  };
-  const checkedInSafe = occupant.status === "SAFE";
+  const ZONES = [
+    {
+      id: "Zone A",
+      label: "Zone A — Stuyvesant Square Park",
+      badge: "PRIMARY",
+      badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    },
+    {
+      id: "Zone B",
+      label: "Zone B — Union Square Park",
+      badge: "SECONDARY",
+      badgeColor: "bg-blue-100 text-blue-800 border-blue-300",
+    },
+  ];
 
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="w-full max-w-sm mx-auto bg-gray-950 rounded-[40px] border-8 border-gray-800 p-3 shadow-2xl relative overflow-hidden flex flex-col h-[710px]">
-      {/* Phone Camera Notch */}
-      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-5 bg-gray-800 rounded-b-2xl z-20 flex items-center justify-center">
-        <div className="w-12 h-1 bg-gray-900 rounded-full" />
-      </div>
-
-      {/* Screen Header Status Bar */}
-      <div className="flex justify-between items-center text-[10px] font-mono text-gray-400 pt-1 px-4 mb-2 select-none">
-        <span>MusterCommand OS</span>
-        <div className="flex items-center gap-1.5">
+    <div className="w-full max-w-sm mx-auto flex flex-col bg-slate-900 rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden">
+      {/* ── TOP STATUS BAR ─────────────────────────────────────────────────── */}
+      <div className="flex justify-between items-center px-4 py-2.5 bg-slate-950/70 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <Radio size={13} className="text-amber-500" />
+          <span className="text-xs font-bold font-mono text-slate-300 tracking-wider">
+            MusterCommand OS
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
           {isBlackout ? (
-            <span className="text-yellow-500 font-bold animate-pulse flex items-center gap-0.5">
-              <span>● BLE-MESH</span>
+            <span className="text-xs font-bold text-yellow-600 flex items-center gap-1.5 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" />
+              BLE MESH
             </span>
           ) : (
-            <span className="text-emerald-500 flex items-center gap-0.5">
-              <Wifi size={10} /> 5G Cloud
+            <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5">
+              <Wifi size={12} /> 5G Cloud
             </span>
           )}
-          <span>78% 🔋</span>
+          <span className="text-xs text-slate-400">🔋 78%</span>
         </div>
       </div>
 
-      {/* Active evacuation notification block */}
-      <div className="mt-1 bg-red-950/90 border border-red-500/30 p-3 rounded-2xl mb-3 text-xs flex flex-col gap-2">
-        <div className="flex items-start gap-2">
-          <Flame className="text-red-500 shrink-0 mt-0.5" size={16} />
-          <div className="flex-1">
-            <div className="font-bold text-red-200 uppercase tracking-wider text-[11px]">
-              🔔 EVACUATE FLOOR 7 (Pilot)
-            </div>
-            <div className="text-red-350 text-[10px] leading-relaxed mt-0.5">
-              Hazard: OFFICE FIRE. Use Stair A (North).
-              {stairBBlocked ? (
-                <span className="text-yellow-400 font-bold block mt-1">
-                  ⚠️ STAIR B IS BLOCKED! Dynamic Reroute Plan Active.
-                </span>
-              ) : (
-                " Stair B (South) is also clear."
-              )}
-            </div>
-          </div>
+      {/* ── CURRENT STATUS CARD ─────────────────────────────────────────────── */}
+      <div
+        className={`mx-4 mt-4 rounded-2xl border p-4 flex items-center gap-4 ${sc.card}`}
+      >
+        <div
+          className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 ${sc.bg}`}
+        >
+          {occupant.status === "SAFE" && (
+            <CheckCircle size={28} className="text-white" />
+          )}
+          {occupant.status === "CRITICAL" && (
+            <Flame size={28} className="text-white animate-pulse" />
+          )}
+          {occupant.status === "NEED_HELP" && (
+            <AlertTriangle size={26} className="text-white" />
+          )}
+          {occupant.status === "MISSING" && (
+            <User size={26} className="text-white" />
+          )}
         </div>
-
-        {/* Dynamic Directive Broadcast */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-2 text-[9px] text-slate-300 font-mono">
-          <span className="font-bold text-amber-500 uppercase tracking-wider block mb-0.5">
-            📡 Live F-89 Command Relay:
-          </span>
-          <p className="leading-tight text-slate-100">{activeDirective}</p>
-        </div>
-      </div>
-
-      {/* Clear evacuation path — concise 3-step route (Exit → Assemble → Check in) */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-2.5 mb-3 shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-1">
-            <Navigation size={11} /> Your Evacuation Path
-          </span>
-          <span className="text-[8px] font-mono text-slate-500">
-            Floor 7 · 4 Irving Pl
-          </span>
-        </div>
-        <div className="flex items-stretch gap-1">
-          {/* Step 1 — Exit */}
-          <div className="flex-1 bg-gray-950 border border-gray-800 rounded-lg p-1.5 flex flex-col items-center text-center gap-0.5">
-            <DoorOpen size={14} className="text-emerald-400" />
-            <span className="text-[7.5px] uppercase text-gray-500 font-mono leading-none">
-              1 · Exit
-            </span>
-            <span className="text-[9px] font-bold text-slate-100 leading-tight">
-              Stair A (North)
-            </span>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-mono font-bold uppercase tracking-widest text-slate-500 mb-0.5">
+            Your Status
           </div>
-          <ChevronRight
-            size={14}
-            className="text-gray-600 self-center shrink-0"
-          />
-          {/* Step 2 — Assemble */}
-          <div className="flex-1 bg-gray-950 border border-gray-800 rounded-lg p-1.5 flex flex-col items-center text-center gap-0.5">
-            <MapPin size={14} className="text-blue-400" />
-            <span className="text-[7.5px] uppercase text-gray-500 font-mono leading-none">
-              2 · Assemble
-            </span>
-            <span className="text-[9px] font-bold text-slate-100 leading-tight">
-              {ZONE_LABELS[selectedZone] ?? selectedZone}
-            </span>
-          </div>
-          <ChevronRight
-            size={14}
-            className="text-gray-600 self-center shrink-0"
-          />
-          {/* Step 3 — Check in (completes when SAFE) */}
           <div
-            className={`flex-1 rounded-lg p-1.5 flex flex-col items-center text-center gap-0.5 border ${
-              checkedInSafe
-                ? "bg-emerald-950/50 border-emerald-700"
-                : "bg-gray-950 border-gray-800"
+            className={`text-2xl font-black uppercase leading-none ${
+              occupant.status === "SAFE"
+                ? "text-emerald-700"
+                : occupant.status === "CRITICAL"
+                  ? "text-red-700"
+                  : occupant.status === "NEED_HELP"
+                    ? "text-amber-700"
+                    : "text-slate-300"
             }`}
           >
-            <CheckCircle
-              size={14}
-              className={checkedInSafe ? "text-emerald-400" : "text-gray-500"}
-            />
-            <span className="text-[7.5px] uppercase text-gray-500 font-mono leading-none">
-              3 · Check in
-            </span>
-            <span
-              className={`text-[9px] font-bold leading-tight ${
-                checkedInSafe ? "text-emerald-300" : "text-slate-100"
-              }`}
-            >
-              {checkedInSafe ? "Done ✓" : "Tap I AM SAFE"}
-            </span>
+            {sc.label}
+          </div>
+          <div className="text-xs text-slate-500 font-mono mt-1 truncate">
+            {occupant.id} · Badge {occupant.badgeId}
           </div>
         </div>
-        {stairBBlocked && (
-          <div className="mt-1.5 text-[8.5px] font-mono text-yellow-400 bg-yellow-950/40 border border-yellow-900/50 rounded px-1.5 py-1 flex items-center gap-1">
-            <AlertTriangle size={10} className="shrink-0" />
-            Stair B blocked — Stair A (North) is your only cleared route.
-          </div>
-        )}
+        <ShieldCheck size={18} className="text-slate-400 shrink-0" />
       </div>
 
-      {/* Navigation Segment Control */}
+      {/* ── ACTIVE FSD DIRECTIVE ────────────────────────────────────────────── */}
+      <div className="mx-4 mt-3 bg-amber-50 border border-amber-300 rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-600 border-b border-amber-500">
+          <Flame size={14} className="text-white shrink-0" />
+          <span className="text-xs font-black text-white uppercase tracking-wider">
+            FSD Active Directive
+          </span>
+          <span className="ml-auto text-xs font-mono text-amber-200 font-bold">
+            F-89
+          </span>
+        </div>
+        <div className="px-3 py-2.5">
+          <p className="text-sm font-semibold text-slate-200 leading-snug">
+            {activeDirective}
+          </p>
+          {stairBBlocked && (
+            <div className="mt-2 flex items-center gap-2 bg-yellow-100 border border-yellow-400 rounded-lg px-3 py-2">
+              <AlertTriangle size={14} className="text-yellow-700 shrink-0" />
+              <span className="text-xs font-bold text-yellow-900">
+                STAIR B BLOCKED — Use Stair A (North) only
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── SCREEN TABS ─────────────────────────────────────────────────────── */}
       <div
         role="tablist"
-        aria-label="Check-in method"
-        className="grid grid-cols-2 gap-1 bg-gray-900/90 p-1 rounded-2xl border border-gray-800 mb-3 shrink-0"
+        aria-label="Screen selection"
+        className="mx-4 mt-3 grid grid-cols-2 gap-1.5 bg-slate-950/60 p-1.5 rounded-2xl border border-slate-800"
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeScreen === "FORM"}
-          onClick={() => setActiveScreen("FORM")}
-          className={`min-h-[40px] text-[11px] font-semibold rounded-xl transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-slate-400/60 ${
-            activeScreen === "FORM"
-              ? "bg-slate-800 text-slate-100 border border-slate-700 shadow-md"
-              : "text-gray-400 hover:text-gray-200"
-          }`}
-          id="btn-nav-status-form"
-        >
-          Status Form
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeScreen === "QR_PASS"}
-          onClick={() => setActiveScreen("QR_PASS")}
-          className={`min-h-[40px] text-[11px] font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-400/60 ${
-            activeScreen === "QR_PASS"
-              ? "bg-slate-800 text-slate-100 border border-slate-700 shadow-md"
-              : "text-gray-400 hover:text-gray-200"
-          }`}
-          id="btn-nav-qr-pass"
-        >
-          <span
-            aria-hidden="true"
-            className={`w-1.5 h-1.5 rounded-full bg-amber-400 ${occupant.status !== "SAFE" ? "animate-ping" : ""} inline-block`}
-          />
-          Muster QR Pass
-        </button>
+        {(
+          [
+            {
+              id: "PROTOCOL" as const,
+              label: "Protocol & Check-in",
+              dot: false,
+            },
+            {
+              id: "QR_PASS" as const,
+              label: "Muster QR Pass",
+              dot: !checkedIn,
+            },
+          ] satisfies Array<{
+            id: "PROTOCOL" | "QR_PASS";
+            label: string;
+            dot: boolean;
+          }>
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeScreen === tab.id}
+            onClick={() => setActiveScreen(tab.id)}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeScreen === tab.id
+                ? "bg-slate-900 text-slate-100 border border-slate-700 shadow-sm"
+                : "text-slate-400 hover:text-slate-100"
+            }`}
+          >
+            {tab.dot && (
+              <span
+                aria-label="Pending"
+                className="w-2 h-2 rounded-full bg-red-500 inline-block animate-pulse"
+              />
+            )}
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Core Screen Space */}
-      <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 px-1 text-gray-200">
-        {activeScreen === "FORM" ? (
+      {/* ── SCROLLABLE MAIN CONTENT ─────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 space-y-5">
+        {activeScreen === "PROTOCOL" ? (
           <>
-            <div className="text-center py-2 bg-gray-900/60 rounded-xl border border-gray-800">
-              <div className="text-[10px] uppercase font-mono tracking-widest text-gray-400">
-                Personal Token ID
+            {/* ── KNOW YOUR BUILDING — orientation map at the front ───── */}
+            <section aria-labelledby="building-heading">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+                  <Map size={15} />
+                </span>
+                <h3
+                  id="building-heading"
+                  className="text-sm font-black text-slate-200 uppercase tracking-wide"
+                >
+                  Know Your Building
+                </h3>
               </div>
-              <div className="text-base font-bold text-slate-100 font-mono">
-                {occupant.id}
-              </div>
-              <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded bg-gray-800 text-[9px] text-gray-400 border border-gray-700">
-                <ShieldCheck size={10} className="text-emerald-500" /> Layer 5
-                Tokenization
-              </div>
-            </div>
-
-            {/* Input parameters */}
-            <div className="bg-gray-900/40 p-3 rounded-xl border border-gray-800/80 space-y-2.5">
-              <h4 className="text-[11px] font-mono tracking-widest text-slate-300 uppercase font-bold">
-                Layer 1 Registration
-              </h4>
-
-              <div>
-                <label className="block text-[10px] text-gray-400 uppercase mb-1">
-                  Badge ID Verification
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. NW112233"
-                  value={badgeInput}
-                  onChange={(e) => setBadgeInput(e.target.value.toUpperCase())}
-                  className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              <button
+                type="button"
+                onClick={() => setShowBuildingMap(true)}
+                aria-label="Open full building map"
+                className="w-full relative bg-white border-2 border-blue-400 rounded-2xl overflow-hidden cursor-pointer hover:border-blue-600 hover:shadow-lg transition-all group"
+              >
+                <img
+                  src="/building-plan.png"
+                  alt="4 Irving Place building plan showing elevator banks, stairs and exits"
+                  className="w-full h-44 object-contain bg-white p-1"
                 />
-                <p className="text-[9px] text-gray-500 mt-0.5">
-                  Required for physical validation checks.
-                </p>
+                <div className="absolute bottom-0 left-0 right-0 bg-blue-600 px-3 py-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-white">
+                    4 Irving Place · Elevator banks, stairs &amp; exits
+                  </p>
+                  <span className="flex items-center gap-1 text-xs text-blue-100 font-semibold shrink-0">
+                    <Maximize2 size={12} /> Full map
+                  </span>
+                </div>
+              </button>
+              <p className="text-xs text-slate-400 mt-2 leading-snug">
+                Locate{" "}
+                <span className="font-black text-emerald-700">
+                  Stair A (North)
+                </span>{" "}
+                and the main lobby before an emergency.{" "}
+                <span className="font-semibold text-blue-700">
+                  Tap the map to enlarge.
+                </span>
+              </p>
+            </section>
+
+            {/* ── STEP 1: YOUR EVACUATION ROUTE ───────────────── */}
+            <section aria-labelledby="step1-heading">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-7 h-7 rounded-full bg-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
+                  1
+                </span>
+                <h3
+                  id="step1-heading"
+                  className="text-sm font-black text-slate-200 uppercase tracking-wide"
+                >
+                  Your Evacuation Route
+                </h3>
               </div>
 
-              <div>
-                <label className="block text-[10px] text-gray-400 uppercase mb-1">
-                  Free-Text Urgent Note (Voice or Type)
-                </label>
-                <textarea
-                  placeholder="FSD notes (script tags stripped)..."
-                  value={alertNote}
-                  onChange={(e) => setAlertNote(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-xs text-white h-12 focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
-                />
-              </div>
-            </div>
+              {/* Stair blocked warning */}
+              {stairBBlocked && (
+                <div className="mb-3 bg-yellow-100 border-2 border-yellow-500 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                  <AlertTriangle
+                    size={16}
+                    className="text-yellow-700 shrink-0"
+                  />
+                  <p className="text-xs font-black text-yellow-900 uppercase tracking-wide">
+                    Stair B BLOCKED — Use Stair A (North) only
+                  </p>
+                </div>
+              )}
 
-            {/* Assembly Zone Selector */}
-            <div className="bg-gray-900/40 p-3 rounded-xl border border-gray-800/80">
-              <h4 className="text-[11px] font-mono tracking-widest text-slate-300 uppercase mb-2 font-bold">
-                Selected Assembly Point
-              </h4>
-              <div className="space-y-1.5">
-                {[
-                  {
-                    id: "Zone A",
-                    val: "Zone A - Union Sq",
-                    badge: "RECOMMENDED",
-                    color: "text-emerald-400 bg-emerald-950/60",
-                  },
-                  {
-                    id: "Zone B",
-                    val: "Zone B - 14th St",
-                    badge: "SOUTH FLOW",
-                    color: "text-blue-400 bg-blue-950/60",
-                  },
-                  {
-                    id: "Zone C",
-                    val: "Zone C - 15th St",
-                    badge: "NORTH FLOW",
-                    color: "text-gray-400 bg-gray-850",
-                  },
-                ].map((z) => (
-                  <label
-                    key={z.id}
-                    onClick={() => setSelectedZone(z.id)}
-                    className={`flex items-center justify-between p-2 rounded-lg border text-[11px] cursor-pointer transition-all ${
-                      selectedZone === z.id
-                        ? "bg-slate-800/80 border-slate-600"
-                        : "bg-gray-950 border-gray-800/80 hover:bg-gray-900"
+              {/* 3-step route — clear, full names, color-coded */}
+              <div className="flex flex-col gap-2">
+                {/* Step A: Exit */}
+                <div className="bg-emerald-50 border-2 border-emerald-400 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                    <DoorOpen size={20} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs font-bold text-emerald-700 uppercase tracking-wide mb-0.5">
+                      A · Exit the Floor
+                    </div>
+                    <div className="text-sm font-black text-emerald-900">
+                      {stairBBlocked
+                        ? "Stair A (North) — ONLY ROUTE"
+                        : "Stair A (North) • 7th Fl Corridor"}
+                    </div>
+                    <div className="text-xs text-emerald-700 mt-0.5">
+                      Do NOT use elevators. Stairs only.
+                    </div>
+                  </div>
+                  <CheckCircle
+                    size={18}
+                    className="text-emerald-500 shrink-0"
+                  />
+                </div>
+
+                {/* Step B: Assemble — dynamically matches selected zone */}
+                <div className="bg-blue-50 border-2 border-blue-400 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                    <MapPin size={20} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-0.5">
+                      B · Assemble Outside
+                    </div>
+                    <div className="text-sm font-black text-blue-900">
+                      {selectedZone === "Zone A"
+                        ? "Stuyvesant Square Park"
+                        : "Union Square Park"}
+                    </div>
+                    <div className="text-xs text-blue-700 mt-0.5">
+                      {selectedZone === "Zone A"
+                        ? "Between 17th & 15th St — PRIMARY zone"
+                        : "Along East 14th St — SECONDARY zone"}
+                    </div>
+                  </div>
+                  <span
+                    className={`text-xs font-black px-2 py-1 rounded-lg border ${
+                      selectedZone === "Zone A"
+                        ? "bg-emerald-100 text-emerald-700 border-emerald-400"
+                        : "bg-blue-100 text-blue-700 border-blue-400"
                     }`}
                   >
-                    <div className="flex items-center gap-1.5">
+                    {selectedZone === "Zone A" ? "PRIMARY" : "SECONDARY"}
+                  </span>
+                </div>
+
+                {/* Step C: Check in */}
+                <div
+                  className={`rounded-xl px-4 py-3 flex items-center gap-3 border-2 ${
+                    checkedIn
+                      ? "bg-emerald-50 border-emerald-400"
+                      : "bg-slate-50 border-slate-300"
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                      checkedIn ? "bg-emerald-500" : "bg-slate-300"
+                    }`}
+                  >
+                    <CheckCircle size={20} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div
+                      className={`text-xs font-bold uppercase tracking-wide mb-0.5 ${
+                        checkedIn ? "text-emerald-700" : "text-slate-500"
+                      }`}
+                    >
+                      C · Check In with Warden
+                    </div>
+                    <div
+                      className={`text-sm font-black ${
+                        checkedIn ? "text-emerald-900" : "text-slate-400"
+                      }`}
+                    >
+                      {checkedIn ? "✓ Accounted for" : "Tap I'M SAFE below"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ── STEP 2: CONFIRM ASSEMBLY ZONE ───────────────────────────── */}
+            <section aria-labelledby="step2-heading">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-7 h-7 rounded-full bg-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
+                  2
+                </span>
+                <h3
+                  id="step2-heading"
+                  className="text-sm font-black text-slate-200 uppercase tracking-wide"
+                >
+                  Confirm Assembly Zone
+                </h3>
+              </div>
+              <div className="space-y-2">
+                {ZONES.map((z) => (
+                  <label
+                    key={z.id}
+                    className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      selectedZone === z.id
+                        ? "bg-amber-50 border-amber-400 shadow-sm"
+                        : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
                       <input
                         type="radio"
                         name="zone"
                         checked={selectedZone === z.id}
-                        readOnly
-                        className="accent-slate-400"
+                        onChange={() => setSelectedZone(z.id)}
+                        className="w-4 h-4 accent-amber-600"
+                        aria-label={z.label}
                       />
-                      <span>{z.val}</span>
+                      <span
+                        className={`text-sm font-semibold ${selectedZone === z.id ? "text-slate-200" : "text-slate-200"}`}
+                      >
+                        {z.label}
+                      </span>
                     </div>
                     <span
-                      className={`text-[8px] font-bold px-1.5 py-0.5 rounded font-mono ${z.color}`}
+                      className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${z.badgeColor}`}
                     >
                       {z.badge}
                     </span>
                   </label>
                 ))}
               </div>
-            </div>
+            </section>
 
-            {/* Fall Sensor Simulator (OSHA Compliance) */}
-            <div className="bg-gray-900/40 p-3 rounded-xl border border-gray-800/80">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-mono tracking-widest text-slate-300 uppercase font-bold">
-                  OSHA On-Device Telemetry
+            {/* ── STEP 3: CONFIRM YOUR IDENTITY ───────────────────────────── */}
+            <section aria-labelledby="step3-heading">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-7 h-7 rounded-full bg-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
+                  3
                 </span>
-                <span className="text-[9px] bg-red-950 text-red-400 border border-red-800 px-1 py-0.2 rounded font-mono uppercase">
-                  OSHA 1910.38
-                </span>
+                <h3
+                  id="step3-heading"
+                  className="text-sm font-black text-slate-200 uppercase tracking-wide"
+                >
+                  Confirm Your Identity
+                </h3>
               </div>
-              <div className="flex items-center justify-between mt-2 p-2 bg-gray-950 rounded-lg border border-gray-800">
-                <div className="flex items-center gap-2">
-                  <Activity
-                    className={`${isFallSensorEnabled ? "text-red-500 animate-pulse" : "text-emerald-500"}`}
-                    size={16}
-                  />
-                  <div>
-                    <span className="text-[10px] block text-gray-400 font-mono">
-                      Tilt / Accel Sensor
-                    </span>
-                    <span className="text-xs font-bold font-mono text-gray-200">
-                      {isFallSensorEnabled
-                        ? "0.1G / IMPACT ALERT"
-                        : "1.0G (STABLE)"}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-400">
-                    Simulate Fall
-                  </span>
-                  <button
-                    onClick={toggleFallSensor}
-                    className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
-                      isFallSensorEnabled ? "bg-red-500" : "bg-gray-800"
-                    }`}
-                    id="btn-simulate-fall"
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-4">
+                <div>
+                  <label
+                    htmlFor="badge-input"
+                    className="block text-sm font-semibold text-slate-300 mb-1.5"
                   >
-                    <div
-                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                        isFallSensorEnabled ? "translate-x-5" : ""
-                      }`}
-                    />
-                  </button>
+                    Badge ID
+                  </label>
+                  <input
+                    id="badge-input"
+                    type="text"
+                    placeholder={`e.g. ${occupant.badgeId}`}
+                    value={badgeInput}
+                    onChange={(e) =>
+                      setBadgeInput(e.target.value.toUpperCase())
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-base text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/60 placeholder:text-slate-500"
+                    aria-describedby="badge-hint"
+                  />
+                  <p id="badge-hint" className="text-xs text-slate-400 mt-1.5">
+                    2 letters + 6 digits (pre-filled if scanned at gate)
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="alert-note"
+                    className="block text-sm font-semibold text-slate-300 mb-1.5"
+                  >
+                    Alert Note{" "}
+                    <span className="text-slate-500 font-normal">
+                      (optional)
+                    </span>
+                  </label>
+                  <textarea
+                    id="alert-note"
+                    placeholder="Describe any hazard, injury, or situation…"
+                    value={alertNote}
+                    onChange={(e) => setAlertNote(e.target.value)}
+                    rows={2}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/60 resize-none placeholder:text-slate-500"
+                  />
                 </div>
               </div>
-            </div>
+            </section>
+
+            {/* ── FALL DETECTION SENSOR — always visible, prominent ───────── */}
+            <section aria-labelledby="fall-heading">
+              <div
+                className={`rounded-2xl border overflow-hidden ${
+                  isFallSensorEnabled
+                    ? "border-red-400 bg-red-50"
+                    : "border-slate-800 bg-slate-950/60"
+                }`}
+              >
+                {/* Header */}
+                <div
+                  className={`flex items-center gap-3 px-4 py-3 border-b ${
+                    isFallSensorEnabled
+                      ? "bg-red-600 border-red-500"
+                      : "bg-slate-800/60 border-slate-700"
+                  }`}
+                >
+                  <Activity
+                    size={18}
+                    className={
+                      isFallSensorEnabled
+                        ? "text-white animate-pulse"
+                        : "text-emerald-500"
+                    }
+                  />
+                  <div className="flex-1">
+                    <h3
+                      id="fall-heading"
+                      className={`text-sm font-black uppercase tracking-wide ${
+                        isFallSensorEnabled ? "text-white" : "text-slate-200"
+                      }`}
+                    >
+                      Fall Detection Sensor
+                    </h3>
+                    <p
+                      className={`text-xs font-mono ${
+                        isFallSensorEnabled ? "text-red-100" : "text-slate-400"
+                      }`}
+                    >
+                      OSHA 1910.38 · Tilt / Accelerometer
+                    </p>
+                  </div>
+                  <span
+                    className={`text-xs font-bold px-2.5 py-1 rounded-lg border font-mono ${
+                      isFallSensorEnabled
+                        ? "bg-white/20 text-white border-white/40"
+                        : "bg-emerald-950/60 text-emerald-400 border-emerald-800"
+                    }`}
+                  >
+                    {isFallSensorEnabled ? "ALERT" : "STABLE"}
+                  </span>
+                </div>
+
+                {/* Body */}
+                <div className="px-4 py-4">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Sensor reading */}
+                    <div>
+                      <div
+                        className={`text-xl font-black font-mono leading-tight ${
+                          isFallSensorEnabled
+                            ? "text-red-700"
+                            : "text-slate-200"
+                        }`}
+                      >
+                        {isFallSensorEnabled ? "0.1 G — IMPACT" : "1.0 G"}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-0.5">
+                        {isFallSensorEnabled
+                          ? "Impact detected — alert sent to FSD"
+                          : "Normal reading — sensor monitoring"}
+                      </div>
+                    </div>
+
+                    {/* Toggle */}
+                    <div className="flex flex-col items-center gap-1 shrink-0">
+                      <button
+                        onClick={toggleFallSensor}
+                        aria-label={
+                          isFallSensorEnabled
+                            ? "Reset fall sensor"
+                            : "Simulate fall detection"
+                        }
+                        aria-pressed={isFallSensorEnabled}
+                        className={`w-14 h-7 rounded-full p-0.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                          isFallSensorEnabled
+                            ? "bg-red-600 focus:ring-red-400"
+                            : "bg-slate-600 focus:ring-slate-400"
+                        }`}
+                        id="btn-simulate-fall"
+                      >
+                        <div
+                          className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform duration-200 ${
+                            isFallSensorEnabled ? "translate-x-7" : ""
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs text-slate-400">Simulate</span>
+                    </div>
+                  </div>
+
+                  {/* Active alert banner */}
+                  {isFallSensorEnabled && (
+                    <div className="mt-3 bg-red-100 border border-red-300 rounded-xl px-4 py-3 flex items-start gap-2">
+                      <AlertTriangle
+                        size={16}
+                        className="text-red-700 shrink-0 mt-0.5"
+                      />
+                      <p className="text-sm font-bold text-red-800">
+                        Emergency broadcast sent to FSD Red List. FDNY response
+                        initiated. Stay in place if safe to do so.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
           </>
         ) : (
-          /* MUSTER QR PASS VIEW SCREEN */
-          <div className="bg-gray-900/60 p-4 border border-slate-800 rounded-2xl flex flex-col items-center space-y-3.5 animate-fadeIn">
+          /* ── QR PASS SCREEN ─────────────────────────────────────────────── */
+          <div className="flex flex-col items-center gap-5 animate-fadeIn">
             <div className="text-center">
-              <span className="text-[9px] font-mono bg-amber-950 text-amber-400 border border-amber-800/60 px-2 py-0.5 rounded uppercase font-bold tracking-widest">
-                Muster Station Terminal Ticket
+              <span className="inline-block text-sm font-bold px-4 py-2 bg-amber-600 text-white rounded-xl uppercase tracking-wider">
+                Muster Station QR Pass
               </span>
-              <p className="text-[9px] text-gray-400 mt-1 leading-normal max-w-xs font-mono">
-                Present this cryptographically tagged ticket to an active FDNY
-                Warden tablet or kiosk scanner point.
+              <p className="text-sm text-slate-300 mt-2.5 leading-relaxed max-w-xs">
+                Show this QR to a warden tablet or muster gate scanner to log
+                your check-in.
               </p>
             </div>
 
-            {/* Beautiful QR Code Matrix with Scanner animation */}
-            <div className="relative p-3.5 bg-white rounded-2xl shadow-inner border-4 border-slate-750 flex flex-col items-center justify-center">
-              {/* Dynamic QR Pixel Grid */}
+            {/* QR Code */}
+            <div className="relative p-4 bg-white rounded-2xl shadow-xl border-2 border-slate-200 flex flex-col items-center justify-center">
               <div className="grid grid-cols-16 gap-[1.5px] bg-white p-1">
                 {qrGrid.map((row, rIdx) =>
                   row.map((active, cIdx) => (
@@ -552,75 +781,79 @@ export default function OccupantMobile({
                       className={`w-[11.5px] h-[11.5px] rounded-[1px] transition-colors duration-300 ${
                         active
                           ? occupant.status === "SAFE"
-                            ? "bg-slate-950"
+                            ? "bg-[#0f172a]"
                             : occupant.status === "CRITICAL"
-                              ? "bg-red-950"
-                              : "bg-amber-950"
+                              ? "bg-[#7f1d1d]"
+                              : "bg-[#08263f]"
                           : "bg-white"
                       }`}
                     />
                   )),
                 )}
               </div>
-
-              {/* Animated Glowing Scan Line */}
               <div
-                className="absolute left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse"
+                className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-amber-500 to-transparent animate-pulse opacity-70"
                 style={{ animationDuration: "1.8s" }}
               />
-
-              <div className="absolute top-1 right-1">
+              <div className="absolute top-2 right-2">
                 <ScanLine size={14} className="text-slate-400 opacity-60" />
               </div>
             </div>
 
-            {/* Sync ticket status information details card */}
-            <div className="w-full bg-black/60 rounded-xl p-2.5 border border-slate-800 text-[10px] space-y-1.5 font-mono">
-              <div className="flex justify-between border-b border-slate-850 pb-1 text-slate-400 font-bold">
-                <span>ENTRY PARAMETER</span>
-                <span className="text-slate-100">SEALED ENVELOPE</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Occupant Token:</span>
-                <span className="text-yellow-400 font-bold">{occupant.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Assigned Zone:</span>
-                <span className="text-slate-205 font-bold">{selectedZone}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Verification Code:</span>
-                <span className="text-slate-205">
-                  {badgeInput || occupant.badgeId}
+            {/* Pass details */}
+            <div className="w-full bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-2.5 font-mono">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-2.5 mb-1">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Field
+                </span>
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Value
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Current Status:</span>
-                <span
-                  className={`font-bold uppercase ${
+              {[
+                { label: "Token", value: occupant.id, color: "text-amber-400" },
+                { label: "Zone", value: selectedZone, color: "text-slate-200" },
+                {
+                  label: "Badge",
+                  value: badgeInput || occupant.badgeId,
+                  color: "text-slate-200",
+                },
+                {
+                  label: "Status",
+                  value: occupant.status,
+                  color:
                     occupant.status === "SAFE"
                       ? "text-emerald-400"
                       : occupant.status === "CRITICAL"
-                        ? "text-red-400 animate-pulse"
-                        : "text-amber-400"
-                  }`}
+                        ? "text-red-400"
+                        : "text-amber-400",
+                  pulse: occupant.status === "CRITICAL",
+                },
+              ].map(({ label, value, color, pulse }) => (
+                <div
+                  key={label}
+                  className="flex justify-between items-center gap-4"
                 >
-                  {occupant.status}
-                </span>
-              </div>
+                  <span className="text-sm text-slate-500">{label}:</span>
+                  <span
+                    className={`text-sm font-bold uppercase truncate ${color} ${pulse ? "animate-pulse" : ""}`}
+                  >
+                    {value}
+                  </span>
+                </div>
+              ))}
 
-              {/* Encrypted JSON Payload hash for Section 5 compliance */}
-              <div className="pt-1.5 border-t border-slate-850">
-                <span className="text-[7.5px] uppercase tracking-wider text-slate-500 block mb-0.5">
-                  Sealed SHA-256 HMAC Stamp:
+              <div className="pt-2.5 border-t border-slate-800">
+                <span className="text-xs text-slate-500 uppercase tracking-wider block mb-1.5">
+                  HMAC / SHA-256 Payload
                 </span>
-                <p className="text-[8px] text-slate-400 leading-tight select-all break-all overflow-hidden line-clamp-2 select-all whitespace-pre-wrap bg-slate-950 p-1 rounded font-mono border border-slate-900">
+                <p className="text-xs text-slate-400 leading-tight select-all break-all bg-slate-900 p-2.5 rounded-xl border border-slate-800">
                   {qrPayload}
                 </p>
               </div>
             </div>
 
-            {/* Quick Simulation check-in trigger */}
+            {/* Simulate gate scan */}
             <button
               type="button"
               aria-label="Simulate muster gate scan and check in as safe"
@@ -629,65 +862,69 @@ export default function OccupantMobile({
                   occupant.id,
                   "SAFE",
                   selectedZone,
-                  `QR code scanned at Muster Station Terminal (Zone: ${selectedZone})`,
+                  `QR scanned at Muster Gate ${selectedZone}`,
                   false,
                 );
-                setStatusMessage(
-                  `Quick Check-In Success! Dynamic QR validation code recognized at Muster Gate ${selectedZone}. Mark SAFE logged to chain.`,
-                );
-                setActiveScreen("FORM");
+                setStatusMessage(`Check-in logged via QR at ${selectedZone}.`);
+                setActiveScreen("PROTOCOL");
               }}
-              className="w-full min-h-[44px] bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold border border-slate-700 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-400/40"
+              className="w-full min-h-14 bg-slate-800 hover:bg-slate-700 text-slate-100 text-base font-bold border border-slate-700 rounded-2xl flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-slate-400/40"
             >
-              <QrCode size={16} aria-hidden="true" className="text-amber-400" />
-              Simulate gate scan
+              <QrCode size={20} aria-hidden="true" className="text-amber-500" />
+              Simulate Gate Scan
             </button>
           </div>
         )}
       </div>
 
-      {/* Touch Screen Validation Errors */}
+      {/* ── FEEDBACK MESSAGES ────────────────────────────────────────────────── */}
       {validationError && (
-        <div className="bg-red-950/80 border border-red-500/70 p-2 rounded-xl text-red-200 text-[10px] font-mono mb-2 flex items-center gap-1">
-          <AlertTriangle size={12} className="shrink-0 text-red-400" />
-          <span>{validationError}</span>
+        <div
+          role="alert"
+          className="mx-4 mb-3 bg-red-50 border border-red-300 p-3.5 rounded-2xl flex items-start gap-3"
+        >
+          <AlertTriangle size={18} className="shrink-0 text-red-600 mt-0.5" />
+          <p className="text-sm font-semibold text-red-800">
+            {validationError}
+          </p>
         </div>
       )}
-
-      {/* Screen Success Confirmation */}
       {statusMessage && (
-        <div className="bg-emerald-950/80 border border-emerald-500/70 p-2 rounded-xl text-emerald-200 text-[9px] font-mono mb-2 leading-tight">
-          <div className="flex items-center gap-1 font-bold text-emerald-300">
-            <CheckCircle size={10} /> Sync Complete
-          </div>
-          <span className="block mt-0.5 text-slate-350">{statusMessage}</span>
+        <div
+          role="status"
+          className="mx-4 mb-3 bg-emerald-50 border border-emerald-300 p-3.5 rounded-2xl flex items-start gap-3"
+        >
+          <CheckCircle size={18} className="shrink-0 text-emerald-600 mt-0.5" />
+          <p className="text-sm font-semibold text-emerald-800">
+            {statusMessage}
+          </p>
         </div>
       )}
 
-      {/* Action bar — one clear primary button, two calmer secondary actions */}
-      <div className="flex flex-col gap-2.5 mt-auto pt-3 border-t border-gray-800 pb-2">
-        {/* PRIMARY: the action almost every occupant needs */}
+      {/* ── FIXED ACTION BUTTONS ─────────────────────────────────────────────── */}
+      <div className="px-4 pb-5 pt-3 border-t border-slate-800 flex flex-col gap-3 bg-slate-900">
+        {/* PRIMARY — I'm Safe */}
         <button
           type="button"
           onClick={() => handleCheckIn("SAFE")}
-          aria-label="Check in as safe"
-          className="w-full min-h-[56px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-emerald-400/50"
+          aria-label="I am safe — check in now"
+          className="w-full min-h-16 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-xl rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/30 transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-emerald-400/60"
           id="btn-evac-safe"
         >
-          <CheckCircle size={22} aria-hidden="true" />
-          I'm Safe
+          <CheckCircle size={26} aria-hidden="true" />
+          I'M SAFE
         </button>
 
-        {/* SECONDARY: clearly separated, color-coded, no distracting animation */}
-        <div className="grid grid-cols-2 gap-2.5">
+        {/* SECONDARY — Need Help / SOS */}
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => handleCheckIn("NEED_HELP")}
-            aria-label="I need help"
-            className="min-h-[48px] bg-amber-600 hover:bg-amber-500 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-amber-400/50"
+            aria-label="I need help — notify warden"
+            className="min-h-14 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold text-base rounded-xl flex items-center justify-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-amber-400/50"
             id="btn-evac-help"
           >
-            <AlertTriangle size={18} aria-hidden="true" />
+            <AlertTriangle size={20} aria-hidden="true" />
             Need Help
           </button>
           <button
@@ -697,27 +934,98 @@ export default function OccupantMobile({
                 occupant.id,
                 "CRITICAL",
                 selectedZone,
-                "🚨 AUTOMATIC SOS PANIC! Active device alarm triggered by occupant.",
+                "🚨 SOS PANIC — active device alarm triggered.",
                 true,
               );
-              setStatusMessage(
-                "⚠️ EMERGENCY SOS BROADCAST SENT IN MESH PACKETS!",
-              );
+              setStatusMessage("⚠️ SOS broadcast sent to FSD and warden.");
             }}
-            aria-label="Emergency SOS"
-            className="min-h-[48px] bg-red-600 hover:bg-red-500 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-red-400/50"
+            aria-label="Emergency SOS — alert FSD immediately"
+            className="min-h-14 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-bold text-base rounded-xl flex items-center justify-center gap-2 shadow-md shadow-red-600/20 transition-all active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-4 focus:ring-red-400/50"
             id="btn-sos-panic"
           >
-            <Flame size={18} aria-hidden="true" />
+            <Flame size={20} aria-hidden="true" />
             SOS
           </button>
         </div>
       </div>
 
-      {/* Phone Home Button bar */}
-      <div className="w-full flex justify-center py-1 bg-transparent mt-1">
-        <div className="w-28 h-1 bg-gray-800 rounded-full" />
-      </div>
+      {/* ── FULLSCREEN BUILDING MAP MODAL ──────────────────────── */}
+      {showBuildingMap && (
+        <div
+          role="dialog"
+          aria-label="Building map"
+          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setShowBuildingMap(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-slate-300 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-blue-600">
+              <div className="flex items-center gap-2">
+                <Map size={18} className="text-white" />
+                <span className="text-sm font-black text-white uppercase tracking-wide">
+                  Know Your Building — 4 Irving Place
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBuildingMap(false)}
+                aria-label="Close building map"
+                className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-slate-50">
+              {/* Building overview */}
+              <div className="p-3 border-b border-slate-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black shrink-0">
+                    1
+                  </span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                    Building Overview — Elevator Banks &amp; Stairs
+                  </span>
+                </div>
+                <img
+                  src="/building-plan.png"
+                  alt="Full 4 Irving Place building plan with elevator banks, stairs, standpipes and FD connections"
+                  className="w-full h-auto rounded-xl border-2 border-slate-200"
+                />
+              </div>
+
+              {/* Floor 7 As-Built */}
+              <div className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-xs font-black shrink-0">
+                    2
+                  </span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                    Floor 7 As-Built — Your Workspace
+                  </span>
+                </div>
+                <img
+                  src="/floor7-plan.png"
+                  alt="7th floor As-Built plan showing all office suites, elevator lobbies C/D/E/G, stairs A/B/C/D"
+                  className="w-full h-auto rounded-xl border-2 border-slate-200"
+                />
+              </div>
+            </div>
+            <div className="px-4 py-3 border-t border-slate-200 bg-white">
+              <p className="text-xs text-slate-400 leading-snug">
+                Find{" "}
+                <span className="font-black text-emerald-700">
+                  Stair A (North)
+                </span>{" "}
+                on Floor 7 and the{" "}
+                <span className="font-black text-blue-700">Bank A Car #14</span>{" "}
+                elevator (FSD/FDNY only). In a fire, use stairs only.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

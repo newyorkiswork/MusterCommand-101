@@ -27,6 +27,7 @@ export const INITIAL_OCCUPANTS: Occupant[] = [
     quadrant: "Center",
     lastSeen: "09:55 AM",
     fallDetected: false,
+    drillParticipant: true,
   },
   {
     id: "usr_b3c7d6e5",
@@ -54,6 +55,7 @@ export const INITIAL_OCCUPANTS: Occupant[] = [
     musterZone: "Zone A",
     lastSeen: "10:00 AM",
     fallDetected: false,
+    drillParticipant: true,
   },
   {
     id: "usr_c1b2a3d4",
@@ -64,6 +66,7 @@ export const INITIAL_OCCUPANTS: Occupant[] = [
     quadrant: "NW",
     lastSeen: "09:58 AM",
     fallDetected: false,
+    drillParticipant: true,
   },
   {
     id: "usr_e5f6a7b8",
@@ -111,6 +114,67 @@ export const INITIAL_OCCUPANTS: Occupant[] = [
     isAtARA: false,
     nextOfKinRegistered: true,
     drillParticipant: true,
+  },
+  {
+    // 4th mobility-impaired occupant — staged at ARA on NE stairwell landing
+    id: "usr_m4n5o6p7",
+    badgeId: "NE884422",
+    nameEncrypted: "V•• O•••••",
+    role: "Occupant",
+    status: "NEED_HELP",
+    quadrant: "NE",
+    lastSeen: "10:07 AM",
+    alertNote: "Staged at ARA on NE stairwell landing — awaiting evac-chair.",
+    fallDetected: false,
+    mobilityImpaired: true,
+    isAtARA: true,
+    nextOfKinRegistered: true,
+    drillParticipant: true,
+  },
+  {
+    // EAP Searcher — NE quadrant sweep team
+    id: "usr_sr1ne334",
+    badgeId: "SR334455",
+    nameEncrypted: "T•••• M•••••",
+    role: "Searcher",
+    status: "SAFE",
+    quadrant: "NE",
+    staircase: "Stair A",
+    musterZone: "Zone A",
+    lastSeen: "10:08 AM",
+    fallDetected: false,
+    drillParticipant: true,
+    nextOfKinRegistered: true,
+  },
+  {
+    // EAP Searcher — SW quadrant sweep team
+    id: "usr_sr2sw667",
+    badgeId: "SR667788",
+    nameEncrypted: "H•••• C••••",
+    role: "Searcher",
+    status: "SAFE",
+    quadrant: "SW",
+    staircase: "Stair A",
+    musterZone: "Zone A",
+    lastSeen: "10:08 AM",
+    fallDetected: false,
+    drillParticipant: true,
+    nextOfKinRegistered: true,
+  },
+  {
+    // EAP Deputy — backs up the Floor Warden, runs corridor accountability
+    id: "usr_dpct990",
+    badgeId: "DP990011",
+    nameEncrypted: "K••• B•••••",
+    role: "Deputy",
+    status: "SAFE",
+    quadrant: "Center",
+    staircase: "Stair A",
+    musterZone: "Zone A",
+    lastSeen: "10:02 AM",
+    fallDetected: false,
+    drillParticipant: true,
+    nextOfKinRegistered: true,
   },
   {
     id: "usr_va1b2c3d4",
@@ -289,20 +353,74 @@ export const SEED_LEDGER: LedgerBlock[] = [
   },
 ];
 
+// ConEdison Floor 7 EAP — designated assembly areas
 export const MUSTER_ZONES = [
   {
     id: "Zone A",
-    label: "Zone A - Union Square Park",
-    desc: "Main Assembly Area [RECOMMENDED]",
+    label: "Zone A - Stuyvesant Square Park",
+    desc: "PRIMARY Assembly Area (btwn 17th & 15th St) [RECOMMENDED]",
   },
   {
     id: "Zone B",
-    label: "Zone B - Irving Pl & 14th",
-    desc: "Secondary South Assembly",
-  },
-  {
-    id: "Zone C",
-    label: "Zone C - Irving Pl & 15th",
-    desc: "Tertiary North Assembly",
+    label: "Zone B - Union Square Park",
+    desc: "SECONDARY Assembly Area (along E 14th St)",
   },
 ];
+
+// ConEdison Floor 7 EAP — 12 emergency event types the FSD may declare
+export const EAP_EMERGENCY_TYPES = [
+  { id: "Fire/Smoke", label: "Fire / Smoke", icon: "🔥" },
+  { id: "Explosion", label: "Explosion", icon: "💥" },
+  { id: "Medical", label: "Medical", icon: "🩺" },
+  { id: "Biological", label: "Biological", icon: "🧪" },
+  { id: "Chemical Release", label: "Chemical Release", icon: "☣️" },
+  { id: "Radiological", label: "Radiological", icon: "☢️" },
+  { id: "Nuclear", label: "Nuclear", icon: "⚛️" },
+  { id: "Natural Disaster", label: "Natural Disaster", icon: "🌪️" },
+  { id: "Active Shooter", label: "Active Shooter", icon: "🚨" },
+  { id: "Bomb Threat", label: "Bomb Threat", icon: "💣" },
+  { id: "Suspicious Package", label: "Suspicious Package", icon: "📦" },
+  { id: "Other", label: "Other", icon: "❓" },
+] as const;
+
+// Three LSD/FSD decision branches per Floor 7 EAP
+export const EAP_DECISIONS = [
+  {
+    id: "EVACUATE",
+    label: "Evacuate",
+    desc: "Full or partial floor evacuation via designated stairs",
+  },
+  {
+    id: "SHELTER_IN_PLACE",
+    label: "Shelter in Place",
+    desc: "Occupants remain in current secure area",
+  },
+  {
+    id: "IN_BUILDING_RELOCATION",
+    label: "In-Building Relocation",
+    desc: "Move occupants to another floor / safe zone in building",
+  },
+] as const;
+
+// Floor 7 elevator recall — only these two cars are authorized
+// (all others recall to lobby; no occupant elevator use during fire/explosion)
+export const ELEVATOR_RECALL = [
+  {
+    bank: "A-Bank",
+    carNumber: 14,
+    status: "AUTHORIZED" as const,
+    note: "Authorized for FSD / FDNY use",
+  },
+  {
+    bank: "G-Bank",
+    carNumber: 1,
+    status: "AUTHORIZED" as const,
+    note: "Authorized for FSD / FDNY use",
+  },
+];
+
+// Floor 7 sweep quadrants — warden sweep coverage target ≥ 98%
+export const SWEEP_QUADRANTS = ["NW", "NE", "SW", "SE", "Center"] as const;
+
+// FDNY / NYC LL26 record retention requirement
+export const RECORD_RETENTION_YEARS = 10;

@@ -40,7 +40,7 @@ export default function App() {
 
   // NYC F-89 Emergency Broadcast Directive State
   const [activeDirective, setActiveDirective] = useState<string>(
-    "Phase 1 Evacuation: NE Office Fire hazard detected. NW and SE core team wardens sweep stairwells. Reroute SW occupants via Stair A.",
+    "Phase 1 Evacuation — NE office fire detected. All Floor 7 occupants gather at corridor; FSD-assigned stairs only. PRIMARY muster: Stuyvesant Square Park. NW & SE wardens sweep stairwell landings; SW occupants reroute via Stair A.",
   );
 
   const handleDispatchDirective = async (newDirective: string) => {
@@ -339,7 +339,7 @@ export default function App() {
     setStairBBlocked(false);
     setIsLedgerTampered(false);
     setActiveDirective(
-      "Phase 1 Evacuation: NE Office Fire hazard detected. NW and SE core team wardens sweep stairwells. Reroute SW occupants via Stair A.",
+      "Phase 1 Evacuation — NE office fire detected. All Floor 7 occupants gather at corridor; FSD-assigned stairs only. PRIMARY muster: Stuyvesant Square Park. NW & SE wardens sweep stairwell landings; SW occupants reroute via Stair A.",
     );
     logEvent(
       "🟢 Fire safety declared CLEAR. Drill successfully closed. Metrics archived.",
@@ -357,15 +357,14 @@ export default function App() {
                 <Radio className="animate-spin text-orange-400" size={18} />
               </span>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-white font-sans flex items-center gap-1.5">
+                <h1 className="text-2xl font-black tracking-tight text-slate-100 font-sans flex items-center gap-2">
                   MusterCommand
-                  <span className="text-[10px] font-mono tracking-widest bg-slate-800 text-slate-300 font-bold border border-slate-700 px-1.5 py-0.2 rounded">
-                    PHASE 1 - FLOOR 7 PILOT
+                  <span className="text-xs font-mono tracking-widest bg-slate-800 text-slate-300 font-bold border border-slate-700 px-2 py-0.5 rounded-md">
+                    FLOOR 7 PILOT
                   </span>
                 </h1>
-                <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                  ConEdison Headcount Operating System • FOSS Dockerized Pilot
-                  Platform Model 9.0
+                <p className="text-xs text-slate-400 font-mono mt-1">
+                  ConEdison Life-Safety Accountability OS · 4 Irving Plaza
                 </p>
               </div>
             </div>
@@ -374,12 +373,12 @@ export default function App() {
           {/* Master Controller Dashboard Toggles */}
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             {/* Blackout toggle */}
-            <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-xs w-full sm:w-auto">
-              <span className="text-slate-400 font-mono text-[10px] uppercase tracking-wider pl-1.5 flex items-center gap-1">
+            <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800 w-full sm:w-auto">
+              <span className="text-slate-400 font-mono text-xs uppercase tracking-wider pl-1 flex items-center gap-1.5">
                 <span
-                  className={`w-2 h-2 rounded-full ${isBlackout ? "bg-yellow-500 animate-pulse" : "bg-emerald-500"}`}
+                  className={`w-2.5 h-2.5 rounded-full ${isBlackout ? "bg-yellow-500 animate-pulse" : "bg-emerald-500"}`}
                 />
-                <span>Simulation Mesh Blackout</span>
+                <span>Mesh Blackout</span>
               </span>
               <button
                 onClick={() => {
@@ -390,112 +389,98 @@ export default function App() {
                       : "BLACKOUT TRIGGERED. Defaulting communications safely to local BLE Mesh.",
                   );
                 }}
-                className={`ml-2 px-3 py-1 rounded font-mono font-bold text-[10px] transition-all uppercase ${
+                className={`px-3.5 py-1.5 rounded-lg font-mono font-bold text-xs transition-all uppercase cursor-pointer ${
                   isBlackout
                     ? "bg-yellow-600 text-slate-950"
-                    : "bg-slate-800 text-slate-400 hover:text-white"
+                    : "bg-slate-800 text-slate-300 hover:text-slate-100 hover:bg-slate-700"
                 }`}
               >
-                {isBlackout ? "Active" : "Trigger Blackout"}
+                {isBlackout ? "● Active" : "Trigger"}
               </button>
             </div>
 
             {/* Static Vault rotation panel */}
-            <div className="hidden lg:flex items-center gap-1 bg-slate-950/60 font-mono text-[9px] text-slate-500 px-3 py-2 rounded-xl border border-slate-800/80 select-none">
-              <Lock size={10} className="text-emerald-500" />
-              <span>VAULT RE-ENCRYPTION KEY ROTATING</span>
+            <div className="hidden lg:flex items-center gap-1.5 bg-slate-950/60 font-mono text-xs text-slate-500 px-3 py-2.5 rounded-xl border border-slate-800/80 select-none">
+              <Lock size={12} className="text-emerald-500" />
+              <span>Vault Keys Rotating</span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Central Interactive View Switcher Toolbar - Let users press and go in each */}
-      <div className="bg-slate-900/85 border-b border-slate-800/80 py-3 px-4 sticky top-[73px] z-20 backdrop-blur-md select-none">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
-          <div className="flex items-center gap-2 text-slate-400">
-            <span className="text-amber-500 font-bold">
-              👁️ SELECT PERSPECTIVE:
-            </span>
-            <span className="hidden md:inline">
-              Click any option or card header below to focus full screen:
-            </span>
-          </div>
-
-          <div className="bg-slate-950 p-1.5 rounded-xl border border-slate-800 flex items-center gap-1 w-full sm:w-auto overflow-x-auto no-scrollbar">
-            <button
-              onClick={() => {
-                setViewMode("ALL");
-                logEvent(
-                  "Switched View Layout to: Multi-View Split Desk Grid.",
-                );
-              }}
-              className={`px-3 py-1.5 rounded-lg font-bold text-[9.5px] tracking-wider transition-all uppercase flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                viewMode === "ALL"
-                  ? "bg-amber-600 text-slate-950 font-extrabold shadow"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Grid size={11} />
-              <span>Split Grid</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setViewMode("OCCUPANT");
-                logEvent(
-                  "Maximized viewpoint to View A: Occupant Handheld Phone.",
-                );
-              }}
-              className={`px-3 py-1.5 rounded-lg font-bold text-[9.5px] tracking-wider transition-all uppercase flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                viewMode === "OCCUPANT"
-                  ? "bg-amber-600 text-slate-950 font-extrabold shadow"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Smartphone size={11} />
-              <span>Occupant Handheld</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setViewMode("WARDEN");
-                logEvent("Maximized viewpoint to View B: Warden Tablet NW.");
-              }}
-              className={`px-3 py-1.5 rounded-lg font-bold text-[9.5px] tracking-wider transition-all uppercase flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                viewMode === "WARDEN"
-                  ? "bg-amber-600 text-slate-950 font-extrabold shadow"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Tablet size={11} />
-              <span>Warden Tablet</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setViewMode("FSD");
-                logEvent(
-                  "Maximized viewpoint to View C: Command Station Deck.",
-                );
-              }}
-              className={`px-3 py-1.5 rounded-lg font-bold text-[9.5px] tracking-wider transition-all uppercase flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                viewMode === "FSD"
-                  ? "bg-amber-600 text-slate-950 font-extrabold shadow"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Monitor size={11} />
-              <span>Command Deck</span>
-            </button>
+      {/* View switcher — clear, labelled navigation */}
+      <nav
+        aria-label="Select view"
+        className="bg-slate-900 border-b border-slate-800 py-3 px-4 sticky top-[73px] z-20 shadow-sm select-none"
+      >
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="text-sm font-bold text-slate-300 tracking-wide hidden sm:block">
+            Select View
+          </span>
+          <div className="bg-slate-950 p-1.5 rounded-2xl border border-slate-800 flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto no-scrollbar">
+            {(
+              [
+                {
+                  mode: "ALL" as const,
+                  icon: <Grid size={14} />,
+                  label: "All Panels",
+                },
+                {
+                  mode: "OCCUPANT" as const,
+                  icon: <Smartphone size={14} />,
+                  label: "Occupant",
+                },
+                {
+                  mode: "WARDEN" as const,
+                  icon: <Tablet size={14} />,
+                  label: "Warden",
+                },
+                {
+                  mode: "FSD" as const,
+                  icon: <Monitor size={14} />,
+                  label: "Command Deck",
+                },
+              ] as const
+            ).map(({ mode, icon, label }) => (
+              <button
+                key={mode}
+                onClick={() => {
+                  setViewMode(mode);
+                  logEvent(`View switched to: ${label}`);
+                }}
+                aria-pressed={viewMode === mode}
+                className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+                  viewMode === mode
+                    ? "bg-amber-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                }`}
+              >
+                {icon}
+                <span>{label}</span>
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Roster alerts and Blackout warning */}
+      {/* Blackout warning — plain language, visible background */}
       {isBlackout && (
-        <div className="bg-yellow-905 border-b border-yellow-800 text-yellow-500 p-2.5 text-center text-[10px] font-mono leading-relaxed tracking-wider animate-pulse font-semibold">
-          ⚠️ BLACKOUT ACTIVE: ALL SIGNALS FALL BACK SATELLITE FREE TO BLE MESH
-          LOCAL CRYPTOGRAPHIC TRANSACTIONS.
+        <div
+          role="alert"
+          className="bg-yellow-100 border-b-2 border-yellow-400 px-4 py-3 flex items-center justify-center gap-3"
+        >
+          <span className="text-2xl" aria-hidden="true">
+            ⚠️
+          </span>
+          <div className="text-center">
+            <p className="text-sm font-black text-yellow-900 uppercase tracking-wide">
+              Network Blackout Active
+            </p>
+            <p className="text-xs text-yellow-800 font-medium mt-0.5">
+              Wi-Fi • 5G offline — all devices now syncing via local Bluetooth
+              mesh. Check-ins still work.
+            </p>
+          </div>
         </div>
       )}
 
@@ -508,39 +493,40 @@ export default function App() {
             <section
               className={`${viewMode === "OCCUPANT" ? "col-span-12 max-w-sm md:max-w-md mx-auto w-full" : "lg:col-span-3"} flex flex-col gap-2 transition-all duration-300`}
             >
-              <div
+              <button
+                type="button"
                 onClick={() => {
                   const next = viewMode === "OCCUPANT" ? "ALL" : "OCCUPANT";
                   setViewMode(next);
                   logEvent(
                     next === "ALL"
-                      ? "Returned to Split Desk."
-                      : "Maximized View A: Occupant Handheld.",
+                      ? "Returned to All Panels."
+                      : "Expanded: Occupant Handheld.",
                   );
                 }}
-                className="flex items-center justify-between px-2.5 bg-slate-900 border border-slate-800 p-1.5 rounded-xl font-mono text-[9px] text-slate-400 uppercase tracking-widest mb-1 select-none cursor-pointer hover:bg-slate-850 hover:text-white transition-all group"
+                className="flex items-center justify-between w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 font-semibold mb-2 cursor-pointer hover:bg-slate-850 hover:border-amber-600/50 transition-all group"
               >
-                <div className="flex items-center gap-1.5">
-                  <Smartphone size={11} className="text-amber-500" />
-                  <span>View A: Occupant Handheld</span>
+                <div className="flex items-center gap-2">
+                  <Smartphone size={14} className="text-amber-500" />
+                  <span>Occupant Handheld</span>
                 </div>
-                <div className="flex items-center gap-1 text-[8px] bg-slate-950 px-1.5 py-0.5 rounded text-amber-500 font-bold">
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 font-bold">
                   {viewMode === "OCCUPANT" ? (
                     <>
-                      <Minimize2 size={9} />
-                      <span>MINIMIZE</span>
+                      <Minimize2 size={12} />
+                      <span>Collapse</span>
                     </>
                   ) : (
                     <>
                       <Maximize2
-                        size={9}
+                        size={12}
                         className="group-hover:scale-110 transition-transform"
                       />
-                      <span>PRESS & ENTER</span>
+                      <span>Expand</span>
                     </>
                   )}
                 </div>
-              </div>
+              </button>
               <OccupantMobile
                 occupant={occupants[2]} // Alice Smith
                 isBlackout={isBlackout}
@@ -556,39 +542,40 @@ export default function App() {
             <section
               className={`${viewMode === "WARDEN" ? "col-span-full" : "lg:col-span-4"} flex flex-col gap-2 transition-all duration-300`}
             >
-              <div
+              <button
+                type="button"
                 onClick={() => {
                   const next = viewMode === "WARDEN" ? "ALL" : "WARDEN";
                   setViewMode(next);
                   logEvent(
                     next === "ALL"
-                      ? "Returned to Split Desk."
-                      : "Maximized View B: Warden Tablet.",
+                      ? "Returned to All Panels."
+                      : "Expanded: Warden Tablet.",
                   );
                 }}
-                className="flex items-center justify-between px-2.5 bg-slate-900 border border-slate-800 p-1.5 rounded-xl font-mono text-[9px] text-slate-400 uppercase tracking-widest mb-1 select-none cursor-pointer hover:bg-slate-850 hover:text-white transition-all group"
+                className="flex items-center justify-between w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 font-semibold mb-2 cursor-pointer hover:bg-slate-850 hover:border-amber-600/50 transition-all group"
               >
-                <div className="flex items-center gap-1.5">
-                  <Tablet size={11} className="text-amber-500" />
-                  <span>View B: Warden Tablet (NW Sect)</span>
+                <div className="flex items-center gap-2">
+                  <Tablet size={14} className="text-amber-500" />
+                  <span>Warden Tablet</span>
                 </div>
-                <div className="flex items-center gap-1 text-[8px] bg-slate-950 px-1.5 py-0.5 rounded text-amber-500 font-bold">
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 font-bold">
                   {viewMode === "WARDEN" ? (
                     <>
-                      <Minimize2 size={9} />
-                      <span>MINIMIZE</span>
+                      <Minimize2 size={12} />
+                      <span>Collapse</span>
                     </>
                   ) : (
                     <>
                       <Maximize2
-                        size={9}
+                        size={12}
                         className="group-hover:scale-110 transition-transform"
                       />
-                      <span>PRESS & ENTER</span>
+                      <span>Expand</span>
                     </>
                   )}
                 </div>
-              </div>
+              </button>
               <WardenTablet
                 occupants={occupants}
                 isBlackout={isBlackout}
@@ -604,39 +591,40 @@ export default function App() {
             <section
               className={`${viewMode === "FSD" ? "col-span-full" : "lg:col-span-5"} flex flex-col gap-2 transition-all duration-300`}
             >
-              <div
+              <button
+                type="button"
                 onClick={() => {
                   const next = viewMode === "FSD" ? "ALL" : "FSD";
                   setViewMode(next);
                   logEvent(
                     next === "ALL"
-                      ? "Returned to Split Desk."
-                      : "Maximized View C: Command Station Deck.",
+                      ? "Returned to All Panels."
+                      : "Expanded: Command Deck.",
                   );
                 }}
-                className="flex items-center justify-between px-2.5 bg-slate-900 border border-slate-800 p-1.5 rounded-xl font-mono text-[9px] text-slate-400 uppercase tracking-widest mb-1 select-none cursor-pointer hover:bg-slate-850 hover:text-white transition-all group"
+                className="flex items-center justify-between w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 font-semibold mb-2 cursor-pointer hover:bg-slate-850 hover:border-amber-600/50 transition-all group"
               >
-                <div className="flex items-center gap-1.5">
-                  <Monitor size={11} className="text-amber-500" />
-                  <span>View C: Command Station Deck</span>
+                <div className="flex items-center gap-2">
+                  <Monitor size={14} className="text-amber-500" />
+                  <span>Command Deck</span>
                 </div>
-                <div className="flex items-center gap-1 text-[8px] bg-slate-950 px-1.5 py-0.5 rounded text-amber-500 font-bold">
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 font-bold">
                   {viewMode === "FSD" ? (
                     <>
-                      <Minimize2 size={9} />
-                      <span>MINIMIZE</span>
+                      <Minimize2 size={12} />
+                      <span>Collapse</span>
                     </>
                   ) : (
                     <>
                       <Maximize2
-                        size={9}
+                        size={12}
                         className="group-hover:scale-110 transition-transform"
                       />
-                      <span>PRESS & ENTER</span>
+                      <span>Expand</span>
                     </>
                   )}
                 </div>
-              </div>
+              </button>
               <FSDCommandCenter
                 occupants={occupants}
                 ledger={ledger}
@@ -664,25 +652,30 @@ export default function App() {
           )}
         </div>
 
-        {/* Real-time systems logs terminal under the dashboard grids */}
-        <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
-          <div className="flex justify-between items-center pb-2.5 border-b border-slate-900 mb-3 text-xs font-mono">
-            <span className="text-slate-400 font-bold uppercase tracking-widest text-[9.5px]">
-              SYSTEMS LIFE-SAFETY LOGS CONSOLE
-            </span>
-            <span className="text-slate-500 text-[9px]">
-              Continuous Cryptographic Audit Thread
+        {/* System Audit Log */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-sm font-bold text-slate-200 uppercase tracking-wide">
+                System Audit Log
+              </span>
+            </div>
+            <span className="text-xs text-slate-400 font-mono">
+              Live · Cryptographically Verified
             </span>
           </div>
-          <div className="bg-black/40 rounded-xl max-h-[140px] overflow-y-auto p-3 font-mono text-[10px] text-slate-350 space-y-1 pr-1 border border-slate-900 no-scrollbar">
+          <div className="bg-slate-950 rounded-xl max-h-44 overflow-y-auto p-3 font-mono text-xs space-y-1.5 border border-slate-800">
             {systemLogs.map((log, index) => (
-              <div key={index} className="flex gap-2">
-                <span className="text-slate-600 select-none">&gt;</span>
+              <div key={index} className="flex gap-2.5 items-start">
+                <span className="text-amber-600 select-none shrink-0 mt-0.5">
+                  &rsaquo;
+                </span>
                 <span
                   className={
                     log.includes("WARNING")
-                      ? "text-red-400 font-bold animate-pulse"
-                      : ""
+                      ? "text-red-600 font-bold"
+                      : "text-slate-300"
                   }
                 >
                   {log}
@@ -694,7 +687,7 @@ export default function App() {
       </main>
 
       {/* Humble, literal human copyright stamp of the dashboard deck */}
-      <footer className="bg-slate-950 border-t border-slate-900 text-center py-4 text-[10px] text-slate-500 font-mono">
+      <footer className="bg-slate-950 border-t border-slate-900 text-center py-4 text-xs text-slate-500 font-mono">
         <p>
           MusterCommand v9.0 • Free and Open Source (FOSS) • Sandboxed Parity
           Deployed over Cloud Run Platform

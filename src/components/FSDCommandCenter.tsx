@@ -8,7 +8,7 @@ import {
   Send,
   Sparkles,
   RefreshCw,
-  Layers,
+  Activity,
   ShieldCheck,
   Database,
   Flame,
@@ -25,9 +25,17 @@ import {
   Minimize2,
   RotateCcw,
   Accessibility,
+  ArrowUpDown,
 } from "lucide-react";
-import { Occupant, LedgerBlock, DrillHistoryItem } from "../types";
+import {
+  Occupant,
+  LedgerBlock,
+  DrillHistoryItem,
+  EAPEmergencyType,
+  EvacDecision,
+} from "../types";
 import { PILOT_GOALS, PilotGoalContext, FLOOR7_CENSUS } from "../pilotGoals";
+import { EAP_EMERGENCY_TYPES, EAP_DECISIONS, ELEVATOR_RECALL } from "../data";
 import { saveRecord, recordCounts } from "../recordStore";
 
 interface FSDCommandCenterProps {
@@ -46,115 +54,6 @@ interface FSDCommandCenterProps {
   onDispatchDirective: (directive: string) => void;
   onDispatchFamilySms?: () => void;
 }
-
-const ROADMAP_ITEMS = {
-  RESEARCH: [
-    {
-      key: "interview",
-      title: "Warden & SME Interviews",
-      subtitle: "74th, 59th, & East River offices",
-      location: "74th St, 59th St, & East River",
-      assigned: "EH&S & Wardens Team",
-      desc: "Interview wardens and EH&S SMEs at 74th St, 59th St, and East River to understand information flow during drills.",
-      outcome:
-        "✓ Completed. Physical clipboards and hand-tallies are prone to dropouts or 18-minute transmission lags.",
-    },
-    {
-      key: "live_drill",
-      title: "Observe & Walk Live Drill",
-      subtitle: "Process Auditing Walkthrough",
-      location: "East River Facility",
-      assigned: "EH&S & Robert",
-      desc: "Observe or walk through a live drill if permitted to audit process bottlenecks in real time.",
-      outcome:
-        "✓ Observed. Paper clipboards introduce lag in distress message relay and coordinate alignment.",
-    },
-    {
-      key: "map_evac",
-      title: "Map current process",
-      subtitle: "Works vs. Breaks Board",
-      location: "Joint Office Pilot",
-      assigned: "EH&S Joint Taskforce",
-      desc: "Map the current evacuation process — what works, what breaks (e.g. communication stairwells vs. assembly points).",
-      outcome:
-        "✓ Mapped. Decibel sirens work well; staircase voice relays break down entirely under load.",
-    },
-    {
-      key: "pain_point",
-      title: "Identify #1 Pain Point",
-      subtitle: "6-Week Target Focus Selection",
-      location: "Muster Command Terminal",
-      assigned: "Sam & Robert",
-      desc: "Identify the #1 pain point to solve in 6 weeks to ensure rapid deployment of a reliable digital backup.",
-      outcome:
-        "✓ Identified. Distressed personnel identification time. Solution: Offline-first BLE QR muster scan.",
-    },
-  ],
-  MOCKUPS: [
-    {
-      key: "feature_list",
-      title: "MVP Feature Scoping",
-      subtitle: "Lock Build vs. Mock Spec",
-      location: "Product Management Board",
-      assigned: "SMEs & Dev Team",
-      desc: "Lock the must-have feature list and agree what gets mocked vs. built for the 6-week MVP timeline.",
-      outcome:
-        "✓ Agreed. Built: Cryptographic live hash-ledgers and offline scanner. Mocked: Real BLE mesh network bulk count.",
-    },
-    {
-      key: "mobile_mockups",
-      title: "Clickable Mobile Mockups",
-      subtitle: "Warden interface flow",
-      location: "UX Board & Tablets",
-      assigned: "Design & UX Group",
-      desc: "Design and export clickable mobile mockups — warden headcount flow, status taps, assembly point view.",
-      outcome:
-        "✓ Designed. Wardens loved the visual high-contrast layout and easy toggle tabs.",
-    },
-    {
-      key: "feedback",
-      title: "Week 2 SME Feedback",
-      subtitle: "Design Iteration Reviews",
-      location: "74th & 59th St Offices",
-      assigned: "SMEs & Wardens",
-      desc: "Review mockups with wardens and EH&S by end of Week 2 — get real feedback on ease of use under stress.",
-      outcome:
-        "✓ Integrated. Added persistent sector filters, unseal drawer, and pagination blocks.",
-    },
-  ],
-  BUILD: [
-    {
-      key: "dev_env",
-      title: "Environment & Spike",
-      subtitle: "Sam & Robert Setup Phase",
-      location: "ConEd Sandbox / Dev Repo",
-      assigned: "Sam & Robert",
-      desc: "Sam: spike on Photo System & ARCOS access. Robert: set up dev environment to configure the project.",
-      outcome:
-        "✓ Complete. Vite build configured and sandbox API connection established.",
-    },
-    {
-      key: "backend_api",
-      title: "Sam: Stand up backend",
-      subtitle: "Model, Sync & API Scaffold",
-      location: "Secure Cloud Run Pod",
-      assigned: "Sam (Backend)",
-      desc: "Sam: Stand up backend — data model, roster sync, API scaffold, mocked ARCOS & Photo data.",
-      outcome:
-        "✓ Complete. Serves live cryptographic token scans and secure TLS 1.3 decryptions.",
-    },
-    {
-      key: "first_build",
-      title: "Robert: Live Headcount Flow",
-      subtitle: "Integrated Core Sprint",
-      location: "Command Station Central",
-      assigned: "Robert (Frontend)",
-      desc: "Robert: First working build of headcount flow connected to Sam's API (showing live synchronization).",
-      outcome:
-        "★ Running load. Integrates real-time peer communication status with security vault unseals.",
-    },
-  ],
-};
 
 export default function FSDCommandCenter({
   occupants,
@@ -205,45 +104,6 @@ export default function FSDCommandCenter({
       done: false,
     },
   ]);
-
-  // 6-Week EH&S Discovery & Implementation Roadmap States
-  const [roadmapTab, setRoadmapTab] = useState<
-    "RESEARCH" | "MOCKUPS" | "BUILD"
-  >("RESEARCH");
-  const [activeTaskKey, setActiveTaskKey] = useState<string>("interview");
-  const [completedRoadmap, setCompletedRoadmap] = useState<
-    Record<string, boolean>
-  >({
-    interview: true,
-    live_drill: true,
-    map_evac: true,
-    pain_point: true,
-    feature_list: true,
-    mobile_mockups: true,
-    feedback: true,
-    dev_env: true,
-    backend_api: true,
-    first_build: false,
-  });
-
-  const handleToggleRoadmapTask = (key: string) => {
-    setCompletedRoadmap((prev) => {
-      const nextVal = !prev[key];
-      // Find the task across all lists
-      const allTasks = [
-        ...ROADMAP_ITEMS.RESEARCH,
-        ...ROADMAP_ITEMS.MOCKUPS,
-        ...ROADMAP_ITEMS.BUILD,
-      ];
-      const taskItem = allTasks.find((t) => t.key === key);
-      if (taskItem) {
-        onLogEvent(
-          `EH&S Roadmap task updated: [${taskItem.title}] set to ${nextVal ? "COMPLETED" : "IN-PROGRESS"}.`,
-        );
-      }
-      return { ...prev, [key]: nextVal };
-    });
-  };
 
   // FDNY generated report state
   const [fdnyReport, setFdnyReport] = useState<string | null>(null);
@@ -328,6 +188,18 @@ export default function FSDCommandCenter({
   // drill records quarantined from any real FDNY submission.
   const [isDrill, setIsDrill] = useState(true);
 
+  // ─── EAP Emergency Declaration state ───────────────────────────────────
+  const [selectedEmergency, setSelectedEmergency] =
+    useState<EAPEmergencyType>("Fire/Smoke");
+  const [evacDecision, setEvacDecision] = useState<EvacDecision>("EVACUATE");
+  const [elevatorRecall, setElevatorRecall] = useState(
+    ELEVATOR_RECALL.map((e) => ({ ...e })),
+  );
+  // Broadcast flow state for the EAP stepper (ready → broadcasting → sent)
+  const [broadcastState, setBroadcastState] = useState<
+    "ready" | "broadcasting" | "sent"
+  >("ready");
+
   // ---- Interactive map: zoom / pan / full screen over the real floor plan ----
   const [mapZoom, setMapZoom] = useState(1);
   const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
@@ -336,12 +208,12 @@ export default function FSDCommandCenter({
   const mapBoxRef = useRef<HTMLDivElement>(null);
   const mapDragRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Preload the real building plan; only use it if it genuinely decodes.
+  // Preload the real 7th-floor As-Built plan; only use it if it genuinely decodes.
   useEffect(() => {
     const img = new Image();
     img.onload = () => setHasPlan(true);
     img.onerror = () => setHasPlan(false);
-    img.src = "/building-plan.png";
+    img.src = "/floor7-plan.png";
     return () => {
       img.onload = null;
       img.onerror = null;
@@ -413,6 +285,11 @@ INCIDENT TIMESTAMP : ${uniqueTimeStr}
 MESSENGER SECTOR   : Life-Critical FSD Comm Station
 INCIDENT LIFETIME   : ${formatElapsed(elapsedSeconds)} elapsed
 NETWORK LINK TYPE  : ${isBlackout ? "HMAC Bluetooth Mesh - Backup Gateway" : "Primary Cloud Ingress Gateway"}
+OSHA ACCOUNTABILITY: 29 CFR 1910.38 ceiling < 12 min · Floor 7 target < 3 min (stretch < 90 s)
+RECORDS RETENTION  : 10 years (NYC Local Law 26 / FDNY F-89)
+PRIMARY MUSTER     : Stuyvesant Square Park (btwn 17th & 15th St)
+SECONDARY MUSTER   : Union Square Park (along E 14th St)
+AUTH'D ELEVATORS   : A-Bank Car #14 · G-Bank Car #1 (all others recalled to lobby)
 
 --------------------------------------------------------------------------------
 1. COMPREHENSIVE HEADCOUNT STATS
@@ -539,30 +416,32 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
   );
 
   return (
-    <div className="w-full bg-slate-900 border border-slate-700/80 rounded-3xl p-5 shadow-2xl flex flex-col text-slate-100">
+    <div className="w-full bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col text-slate-200">
       {/* Commanding Header Ribbon */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 mb-4 gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-5 mb-5 gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="bg-red-600 text-white font-bold text-[10px] uppercase font-mono px-2 py-0.5 rounded tracking-widest animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="bg-red-600 text-white font-black text-xs uppercase font-mono px-3 py-1 rounded-lg tracking-widest animate-pulse">
               INCIDENT ACTIVE
             </span>
-            <h2 className="text-lg font-bold tracking-tight text-slate-100 font-sans">
-              MusterCommand{" "}
-              <span className="text-slate-400 font-normal">Command Center</span>
+            <h2 className="text-xl font-black tracking-tight text-slate-200">
+              Command Deck
+              <span className="text-slate-500 font-normal text-base ml-2">
+                FSD Station
+              </span>
             </h2>
           </div>
-          <div className="text-[10px] text-slate-400 font-mono mt-1 flex items-center gap-3">
-            <span>LOCATION: Floor 7, 4 Irving Plaza</span>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Clock size={10} className="text-red-400 animate-spin" />
+          <div className="text-sm text-slate-600 font-mono mt-2 flex items-center gap-3 flex-wrap">
+            <span>Floor 7 · 4 Irving Plaza</span>
+            <span className="text-slate-400">·</span>
+            <span className="flex items-center gap-1.5 font-bold text-slate-300">
+              <Clock size={13} className="text-red-600 animate-spin" />
               <span>ELAPSED: {formatElapsed(elapsedSeconds)}</span>
             </span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => {
               const next = !isDrill;
@@ -573,12 +452,11 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                   : "🔴 Mode set to REAL INCIDENT. Family SAFE-SMS dispatch armed.",
               );
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all flex items-center gap-1.5 active:scale-95 ${
+            className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center gap-2 active:scale-95 cursor-pointer ${
               isDrill
-                ? "bg-blue-950 text-blue-300 border-blue-800"
-                : "bg-red-950 text-red-300 border-red-700 animate-pulse"
+                ? "bg-blue-100 text-blue-700 border-blue-300"
+                : "bg-red-100 text-red-700 border-red-300 animate-pulse"
             }`}
-            title="Toggle drill vs. real-incident mode"
           >
             {isDrill ? "🟦 DRILL MODE" : "🔴 REAL INCIDENT"}
           </button>
@@ -587,36 +465,35 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
               setElapsedSeconds(0);
               onLogEvent("FSD manually reset the incident elapsed timer.");
             }}
-            className="bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-slate-600 text-slate-300 font-bold text-xs py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-all active:scale-95"
-            id="btn-fsd-reset-timer"
+            className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-300 font-bold text-sm py-2.5 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
           >
-            <RefreshCw size={12} className="text-amber-500" />
-            RESET TIMER
+            <RefreshCw size={14} className="text-amber-500" />
+            Reset Timer
           </button>
           <button
             onClick={onToggleStairB}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
+            className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
               stairBBlocked
-                ? "bg-yellow-950 text-yellow-400 border-yellow-700"
-                : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-755"
+                ? "bg-yellow-100 text-yellow-700 border-yellow-300"
+                : "bg-slate-100 text-slate-300 border-slate-300 hover:bg-slate-200"
             }`}
           >
-            {stairBBlocked ? "⚠️ BLOCK STAIR B (ACTIVE)" : "BLOCK STAIR B"}
+            {stairBBlocked ? "⚠️ Stair B BLOCKED" : "Block Stair B"}
           </button>
           <button
             onClick={() => {
               if (
                 confirm(
-                  "Confirm: Declare situation 100% CLEAR? This resolves current drill logs.",
+                  "Declare situation 100% CLEAR? This closes the current logs.",
                 )
               ) {
                 onClearIncident();
               }
             }}
-            className="bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/30 text-white font-bold text-xs py-1.5 px-4 rounded-lg flex items-center gap-1 transition-all active:scale-95"
+            className="bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/40 text-white font-bold text-sm py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
           >
-            <CheckCircle size={13} />
-            DECLARE CLEAR
+            <CheckCircle size={15} />
+            Declare Clear
           </button>
         </div>
       </div>
@@ -628,102 +505,123 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
         );
         if (redList.length === 0) return null;
         return (
-          <div className="mb-4 bg-red-950/30 border border-red-800/60 rounded-2xl p-3 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle
-                  size={13}
-                  className="text-red-400 animate-pulse"
-                />
-                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-red-300">
-                  Wearable Red List — {redList.length} Active Alert
+          <div
+            role="alert"
+            className="mb-5 bg-red-50 border-2 border-red-400 rounded-2xl overflow-hidden"
+          >
+            {/* Banner header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-red-600">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle size={18} className="text-white shrink-0" />
+                <span className="text-sm font-black text-white uppercase tracking-wide">
+                  Wearable Red List &mdash; {redList.length} Active Alert
                   {redList.length !== 1 ? "s" : ""}
                 </span>
               </div>
-              <span className="text-[8px] font-mono text-red-500 border border-red-800 bg-red-950 px-1.5 py-0.5 rounded uppercase">
-                FSD Priority · &lt;10 s
+              <span className="text-xs font-bold text-red-100 bg-red-700/60 border border-red-400/40 px-2.5 py-1 rounded-lg">
+                FSD Priority &lt; 10 s
               </span>
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            {/* Alert cards */}
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {redList.map((o) => {
                 const isOpen = unsealedTokenId === o.id;
                 const eventLabel = o.fallDetected
-                  ? "FALL DETECTED"
-                  : "SOS / CRITICAL";
+                  ? "Fall Detected"
+                  : "SOS / Critical";
                 return (
                   <div
                     key={o.id}
-                    className={`flex-1 min-w-[180px] rounded-xl border p-2 flex flex-col gap-1 transition-all ${
+                    className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-all ${
                       isOpen
-                        ? "bg-slate-900 border-amber-500/70 shadow-lg"
-                        : "bg-red-950/40 border-red-700/60"
+                        ? "bg-white border-amber-400 shadow-lg"
+                        : "bg-white border-red-300"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[8px] font-mono font-bold text-red-300 bg-red-900/60 border border-red-700 px-1.5 py-0.5 rounded uppercase">
+                    {/* Alert type + quadrant */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-black text-red-700 bg-red-100 border border-red-300 px-2.5 py-1 rounded-lg uppercase tracking-wide">
                         {eventLabel}
                       </span>
-                      <span className="text-[8px] font-mono text-slate-500 bg-slate-900 border border-slate-800 px-1 py-0.5 rounded">
+                      <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg">
                         {o.quadrant}
                       </span>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-100 leading-tight truncate">
-                      {isOpen && unsealedDetails
-                        ? unsealedDetails.name
-                        : o.nameEncrypted}
-                    </p>
-                    <p className="text-[8px] text-slate-500 font-mono truncate">
-                      {o.id} · {o.badgeId}
-                    </p>
-                    {o.alertNote && (
-                      <p className="text-[8px] text-amber-300 italic leading-tight line-clamp-1">
-                        {o.alertNote}
+
+                    {/* Name + IDs */}
+                    <div>
+                      <p className="text-base font-bold text-slate-200 leading-tight">
+                        {isOpen && unsealedDetails
+                          ? unsealedDetails.name
+                          : o.nameEncrypted}
                       </p>
-                    )}
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">
+                        {o.id} &middot; {o.badgeId}
+                      </p>
+                      {o.alertNote && (
+                        <p className="text-xs text-red-700 font-medium italic mt-1 leading-snug">
+                          &ldquo;{o.alertNote}&rdquo;
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Unseal button */}
                     <button
                       type="button"
                       onClick={() => handleUnsealFsd(o.id)}
-                      className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border flex items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                      className={`w-full py-2.5 rounded-xl text-sm font-bold border flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         isOpen
-                          ? "bg-yellow-600 text-slate-950 border-yellow-500"
-                          : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700"
+                          ? "bg-amber-500 text-white border-amber-400 hover:bg-amber-600"
+                          : "bg-slate-100 text-slate-300 border-slate-300 hover:bg-slate-200"
                       }`}
                     >
-                      <Unlock size={8} />
-                      <span>{isOpen ? "SEAL" : "JIT UNSEAL"}</span>
+                      <Unlock size={14} />
+                      <span>
+                        {isOpen ? "Seal Identity" : "Unseal Identity"}
+                      </span>
                     </button>
+
+                    {/* Unsealed identity panel */}
                     {isOpen && (
-                      <div className="bg-slate-950/80 p-1.5 rounded-lg border border-amber-600/30 text-[9px] font-mono space-y-0.5">
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                         {isUnsealing ? (
-                          <div className="flex items-center gap-1 text-slate-500">
+                          <div className="flex items-center gap-2 text-slate-600">
                             <RefreshCw
-                              size={9}
-                              className="animate-spin text-amber-500"
+                              size={14}
+                              className="animate-spin text-amber-600"
                             />
-                            <span>Unsealing…</span>
+                            <span className="text-sm">
+                              Verifying identity via vault&hellip;
+                            </span>
                           </div>
                         ) : unsealedDetails ? (
-                          <div className="flex gap-1.5 items-start">
+                          <div className="flex gap-3 items-start">
                             <img
                               src={unsealedDetails.photo}
-                              alt="ID"
+                              alt={`Photo of ${unsealedDetails.name}`}
                               referrerPolicy="no-referrer"
-                              className="w-6 h-6 rounded object-cover border border-slate-800 shrink-0"
+                              className="w-12 h-12 rounded-xl object-cover border-2 border-slate-200 shrink-0"
                             />
                             <div className="flex-1 min-w-0">
-                              <p className="text-amber-400 font-bold truncate">
+                              <p className="text-sm font-bold text-slate-200 truncate">
                                 {unsealedDetails.name}
                               </p>
-                              <p className="text-slate-400 truncate">
+                              <p className="text-xs text-slate-600 font-medium">
+                                {unsealedDetails.role}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">
                                 {unsealedDetails.department}
                               </p>
-                              <p className="text-slate-400 truncate">
+                              <p className="text-xs text-amber-700 font-semibold mt-0.5">
                                 ☎ {unsealedDetails.phone}
                               </p>
                             </div>
                           </div>
                         ) : (
-                          <p className="text-red-400">Vault timeout.</p>
+                          <p className="text-sm text-red-600 font-medium">
+                            Vault timeout &mdash; retry.
+                          </p>
                         )}
                       </div>
                     )}
@@ -735,121 +633,396 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
         );
       })()}
 
-      {/* Main Panel Content (Grid layout) */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 xl:h-[780px]">
-        {/* PANEL 1: SITUATION RECON & CHECKLIST (3 Columns) */}
-        <div className="xl:col-span-3 min-h-[480px] bg-slate-950/50 rounded-2xl border border-slate-800/80 p-3.5 flex flex-col justify-between overflow-y-auto no-scrollbar">
-          <div className="space-y-4">
+      {/* EAP EMERGENCY DECLARATION + ELEVATOR RECALL — full-width row above panels */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 mb-5">
+        {/* EAP Declaration (8 cols) */}
+        <div className="xl:col-span-8 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 shadow-md">
+          {/* Panel header + live status */}
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase">
-                  Emergency Hazard
-                </span>
-                <Flame className="text-red-500 animate-pulse" size={14} />
-              </div>
-              <p className="text-sm font-bold text-slate-100 uppercase font-sans">
-                OFFICE FIRE IN NE SECTOR
-              </p>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                Floor 7 Breakroom, electrical box failure.
+              <span className="font-black text-amber-500 flex items-center gap-2 uppercase text-base">
+                <Flame
+                  size={16}
+                  className="text-amber-500 animate-pulse shrink-0"
+                />
+                EAP Emergency Declaration
+              </span>
+              <p className="text-xs text-slate-600 font-mono mt-1">
+                Classify the incident → choose LSD decision → directive
+                auto-broadcasts
               </p>
             </div>
-
-            <div className="border-t border-slate-850 pt-3">
-              <h4 className="text-[11px] font-mono tracking-widest text-slate-300 uppercase mb-2">
-                NYC LL26 Action Matrix
-              </h4>
-              <div className="space-y-2">
-                {checklist.map((item) => (
-                  <label
-                    key={item.id}
-                    className="flex items-start gap-2 p-1.5 rounded hover:bg-slate-900/40 cursor-pointer select-none"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={item.done}
-                      onChange={() => handleToggleChecklist(item.id)}
-                      className="mt-0.5 accent-amber-500 border-slate-700"
-                    />
-                    <span
-                      className={`text-[10.5px] leading-tight ${item.done ? "line-through text-slate-500" : "text-slate-300"}`}
-                    >
-                      {item.task}
-                    </span>
-                  </label>
-                ))}
+            <div className="shrink-0 text-right">
+              <div className="text-xs font-mono text-slate-500 uppercase tracking-wider">
+                Active
+              </div>
+              <div className="text-sm font-bold text-slate-200 mt-0.5">
+                {
+                  EAP_EMERGENCY_TYPES.find((e) => e.id === selectedEmergency)
+                    ?.icon
+                }{" "}
+                {selectedEmergency}
+              </div>
+              <div
+                className={`text-xs font-bold mt-0.5 ${evacDecision === "EVACUATE" ? "text-red-600" : evacDecision === "SHELTER_IN_PLACE" ? "text-blue-600" : "text-yellow-600"}`}
+              >
+                {EAP_DECISIONS.find((d) => d.id === evacDecision)?.label}
               </div>
             </div>
           </div>
 
-          {/* NYC F-89 Command & Delegation Dispatch Panel */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 mt-4 text-[10.5px] flex flex-col gap-2.5 shadow-md">
+          {/* ── EAP flow stepper — progress + live broadcast state ── */}
+          <div className="flex items-center gap-1.5 bg-slate-50 rounded-xl border border-slate-200 px-3 py-3">
+            {/* Step 1 */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center shrink-0">
+                <CheckCircle size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-200 leading-tight">
+                  1 · Classify
+                </div>
+                <div className="text-xs text-amber-600 font-semibold truncate">
+                  {selectedEmergency}
+                </div>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-slate-400 shrink-0" />
+            {/* Step 2 */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center shrink-0">
+                <CheckCircle size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-200 leading-tight">
+                  2 · Decide
+                </div>
+                <div className="text-xs text-amber-600 font-semibold truncate">
+                  {EAP_DECISIONS.find((d) => d.id === evacDecision)?.label}
+                </div>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-slate-400 shrink-0" />
+            {/* Step 3 — broadcast state */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  broadcastState === "broadcasting"
+                    ? "bg-blue-600 text-white"
+                    : broadcastState === "sent"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-slate-700 text-slate-400"
+                }`}
+              >
+                {broadcastState === "broadcasting" ? (
+                  <RefreshCw size={16} className="animate-spin" />
+                ) : broadcastState === "sent" ? (
+                  <CheckCircle size={16} />
+                ) : (
+                  <Send size={15} />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-200 leading-tight">
+                  3 · Broadcast
+                </div>
+                <div
+                  className={`text-xs font-semibold truncate ${
+                    broadcastState === "broadcasting"
+                      ? "text-blue-600"
+                      : broadcastState === "sent"
+                        ? "text-emerald-600"
+                        : "text-slate-500"
+                  }`}
+                >
+                  {broadcastState === "broadcasting"
+                    ? "Dispatching…"
+                    : broadcastState === "sent"
+                      ? "Live to all units"
+                      : "Awaiting decision"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 1 — Emergency Type chips (3 cols, icon + full label) */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold font-mono uppercase text-slate-600 tracking-wider block">
+              Step 1 — Emergency Type
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              {EAP_EMERGENCY_TYPES.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => {
+                    setSelectedEmergency(e.id as EAPEmergencyType);
+                    setBroadcastState("ready");
+                    onLogEvent(`EAP emergency classified: ${e.icon} ${e.id}`);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer ${selectedEmergency === e.id ? "bg-amber-600 text-slate-950 border-amber-400 font-bold shadow-md" : "bg-white hover:bg-slate-50 text-slate-300 border-slate-300"}`}
+                >
+                  <span className="text-base leading-none shrink-0">
+                    {e.icon}
+                  </span>
+                  <span className="text-xs font-semibold leading-tight">
+                    {e.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Step 2 — Decision branches (full-width stacked rows) */}
+          <div className="space-y-2 pt-3 border-t border-slate-200">
+            <span className="text-xs font-bold font-mono uppercase text-slate-600 tracking-wider block">
+              Step 2 — LSD / FSD Decision
+            </span>
+            <div className="flex flex-col gap-2">
+              {EAP_DECISIONS.map((d) => {
+                const isSelected = evacDecision === d.id;
+                const colors =
+                  d.id === "EVACUATE"
+                    ? {
+                        active: "bg-red-600 border-red-500 text-white",
+                        icon: "🚨",
+                        accent: "text-red-50",
+                      }
+                    : d.id === "SHELTER_IN_PLACE"
+                      ? {
+                          active: "bg-blue-600 border-blue-500 text-white",
+                          icon: "🛡️",
+                          accent: "text-blue-50",
+                        }
+                      : {
+                          // Gold/amber (real yellow, not the blue-remapped amber)
+                          // so this decision stays visually distinct from Shelter.
+                          active:
+                            "bg-yellow-500 border-yellow-600 text-slate-100",
+                          icon: "🏢",
+                          accent: "text-slate-300",
+                        };
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => {
+                      setEvacDecision(d.id as EvacDecision);
+                      onLogEvent(`LSD decision: ${d.label}`);
+                      setBroadcastState("broadcasting");
+                      window.setTimeout(() => setBroadcastState("sent"), 900);
+                      if (d.id === "EVACUATE") {
+                        onDispatchDirective(
+                          `EAP — ${selectedEmergency}: EVACUATE Floor 7. Gather at corridor; FSD-assigned stairs only. PRIMARY muster: Stuyvesant Square Park.`,
+                        );
+                      } else if (d.id === "SHELTER_IN_PLACE") {
+                        onDispatchDirective(
+                          `EAP — ${selectedEmergency}: SHELTER IN PLACE. Remain in current secure area. Await FSD all-clear.`,
+                        );
+                      } else {
+                        onDispatchDirective(
+                          `EAP — ${selectedEmergency}: IN-BUILDING RELOCATION. Move to FSD-designated safe floor/zone.`,
+                        );
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all cursor-pointer ${isSelected ? colors.active + " font-bold shadow-md" : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"}`}
+                  >
+                    <span className="text-xl shrink-0 leading-none">
+                      {colors.icon}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold leading-tight">
+                        {d.label}
+                      </div>
+                      <div
+                        className={`text-xs leading-tight mt-0.5 ${isSelected ? colors.accent : "text-slate-500"}`}
+                      >
+                        {d.desc}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <CheckCircle size={18} className="shrink-0 opacity-90" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Elevator Recall (4 cols) */}
+        <div className="xl:col-span-4 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 shadow-md">
+          <div>
+            <span className="font-black text-amber-500 flex items-center gap-2 uppercase text-base">
+              <ArrowUpDown size={16} className="text-amber-500 shrink-0" />
+              Elevator Recall
+            </span>
+            <p className="text-xs text-slate-600 font-mono mt-1">
+              All cars recalled to lobby. Only FSD/FDNY-authorized cars may
+              move.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {elevatorRecall.map((el, idx) => (
+              <div
+                key={el.bank}
+                className={`p-4 rounded-xl border ${el.status === "AUTHORIZED" ? "bg-emerald-50 border-emerald-300" : "bg-yellow-50 border-yellow-300"}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-base font-bold text-slate-200">
+                      {el.bank} · Car #{el.carNumber}
+                    </div>
+                    <div
+                      className={`text-xs font-mono font-semibold mt-0.5 ${el.status === "AUTHORIZED" ? "text-emerald-700" : "text-yellow-700"}`}
+                    >
+                      {el.status === "AUTHORIZED"
+                        ? "● AUTHORIZED"
+                        : "○ RECALLED TO LOBBY"}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next =
+                        el.status === "AUTHORIZED"
+                          ? "RECALLED_LOBBY"
+                          : "AUTHORIZED";
+                      setElevatorRecall((prev) =>
+                        prev.map((e, i) =>
+                          i === idx ? { ...e, status: next } : e,
+                        ),
+                      );
+                      onLogEvent(
+                        `Elevator ${el.bank} Car #${el.carNumber} → ${next}`,
+                      );
+                    }}
+                    className={`shrink-0 px-4 py-2 rounded-lg text-sm font-bold border transition-all cursor-pointer ${el.status === "AUTHORIZED" ? "bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200" : "bg-yellow-100 border-yellow-300 text-yellow-700 hover:bg-yellow-200"}`}
+                  >
+                    {el.status === "AUTHORIZED" ? "Recall" : "Authorize"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-auto bg-red-50 border border-red-300 rounded-xl p-3">
+            <p className="text-xs font-semibold text-red-700 leading-snug">
+              ⚠️ No occupant elevator use during fire or explosion. Stairways
+              only unless directed by FDNY.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Panel Content (Grid layout) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+        {/* PANEL 1: INCIDENT STATUS & F-89 DISPATCH */}
+        <div className="xl:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-5 overflow-y-auto no-scrollbar">
+          {/* Incident summary */}
+          <div className="bg-red-50 border border-red-300 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-mono font-bold text-red-700 uppercase tracking-widest flex items-center gap-1.5">
+                <Flame size={14} className="text-red-500 animate-pulse" />
+                Active Hazard
+              </span>
+            </div>
+            <p className="text-base font-black text-slate-200 uppercase">
+              OFFICE FIRE — NE SECTOR
+            </p>
+            <p className="text-xs text-slate-600 font-mono mt-1">
+              Floor 7 Breakroom · Electrical box failure
+            </p>
+          </div>
+
+          {/* NYC LL26 Checklist */}
+          <div>
+            <h4 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <ShieldCheck size={15} className="text-amber-500" />
+              NYC LL26 Action Matrix
+            </h4>
+            <div className="space-y-2">
+              {checklist.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-100 cursor-pointer select-none border border-transparent hover:border-slate-200 transition-all"
+                >
+                  <input
+                    type="checkbox"
+                    checked={item.done}
+                    onChange={() => handleToggleChecklist(item.id)}
+                    className="mt-0.5 w-4 h-4 accent-amber-500 shrink-0"
+                  />
+                  <span
+                    className={`text-sm leading-snug ${item.done ? "line-through text-slate-500" : "text-slate-200"}`}
+                  >
+                    {item.task}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* F-89 Directive Dispatcher */}
+          <div className="bg-white border border-slate-300 rounded-2xl p-4 flex flex-col gap-4">
             <div>
-              <span className="font-bold text-amber-500 flex items-center gap-1 uppercase text-[11px] mb-0.5">
+              <span className="font-black text-amber-500 flex items-center gap-2 uppercase text-base">
                 <AlertTriangle
-                  size={12}
+                  size={16}
                   className="text-amber-500 animate-pulse"
-                />{" "}
+                />
                 F-89 Directive Dispatcher
               </span>
-              <p className="text-[9.5px] text-slate-400 font-mono">
-                NYC Local Law 26 Emergency Regulation Protocols
+              <p className="text-xs text-slate-600 font-mono mt-1">
+                NYC Local Law 26 · Emergency Regulation Protocols
               </p>
             </div>
 
-            {/* Current Active Broad Cast Display */}
-            <div className="bg-slate-950 p-2 rounded-lg border border-slate-850/80">
-              <span className="text-[8px] font-mono tracking-wider uppercase text-slate-500 block">
-                Current Active Broadcast:
+            {/* Current Active Broadcast */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
+              <span className="text-xs font-mono font-bold uppercase text-slate-500 tracking-wider block mb-1">
+                Active Broadcast
               </span>
-              <p className="text-slate-200 font-medium text-[10px] leading-tight mt-1">
+              <p className="text-sm font-semibold text-slate-200 leading-snug">
                 {activeDirective}
               </p>
             </div>
 
             {/* Quick Dispatch Presets */}
-            <div className="space-y-1">
-              <span className="text-[8.5px] font-mono uppercase text-slate-400 block font-bold">
-                Standard Reg Presets:
+            <div className="space-y-2">
+              <span className="text-xs font-bold font-mono uppercase text-slate-600 tracking-wider block">
+                Quick Presets
               </span>
-              <div className="grid grid-cols-1 gap-1">
+              <div className="flex flex-col gap-2">
                 {[
                   {
-                    title: "Buffer Relocation Directive",
+                    title: "Buffer Relocation",
                     text: "Phase 1 Relocation: Clear NE and SE occupants to NW safe zones immediately. Wardens secure landings.",
                   },
                   {
-                    title: "Whole Floor Evacuation",
+                    title: "Full Floor Evacuation",
                     text: "Phase 2 Evacuation: Whole pilot floor evacuation declared. Proceed to designated safety exits.",
                   },
                   {
-                    title: "Stairwell B Congestion/Blocked",
+                    title: "Stair B Blocked",
                     text: "Emergency Alert: Stair B reported congested or blocked. All floor components divert to northwest Stair A.",
                   },
                   {
-                    title: "BLE Blackout Mesh Routing",
+                    title: "BLE Mesh Routing",
                     text: "BLE Mesh Sync Active: Switch tablet sync to local Mesh bypass. Log security tag keys at Stairwell nodes.",
                   },
                 ].map((preset, idx) => (
                   <button
                     key={idx}
-                    onClick={() => {
-                      onDispatchDirective(preset.text);
-                    }}
-                    className="w-full text-left bg-slate-950 hover:bg-slate-850 border border-slate-850/60 hover:border-slate-705 p-1.5 rounded text-[9.5px] font-mono text-slate-300 transition-all truncate block cursor-pointer"
+                    onClick={() => onDispatchDirective(preset.text)}
+                    className="w-full text-left bg-white hover:bg-slate-50 border border-slate-300 hover:border-amber-600 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-slate-100 transition-all cursor-pointer flex items-center gap-2"
                     title={preset.text}
                   >
-                    ⚡{" "}
-                    <span className="font-bold text-amber-500">
-                      {preset.title}
-                    </span>
+                    <span className="text-amber-500 shrink-0">⚡</span>
+                    <span className="truncate">{preset.title}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Custom Directive Input form */}
-            <div className="pt-1.5 border-t border-slate-850">
+            {/* Custom Directive */}
+            <div className="pt-3 border-t border-slate-200">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -860,19 +1033,19 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                     e.currentTarget.reset();
                   }
                 }}
-                className="flex gap-1"
+                className="flex gap-2"
               >
                 <input
                   type="text"
                   name="custom_directive"
                   placeholder="Custom F-89 protocol..."
-                  className="flex-1 bg-slate-950 border border-slate-850 rounded px-2 py-1 text-[10px] text-slate-200 placeholder:text-slate-650 focus:outline-none focus:ring-1 focus:ring-amber-500 font-sans"
+                  className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 font-sans"
                 />
                 <button
                   type="submit"
-                  className="bg-amber-600 hover:bg-amber-550 border border-amber-500/20 text-slate-950 px-2 py-1 rounded font-mono font-bold text-[9px] uppercase tracking-wider shrink-0 cursor-pointer"
+                  className="bg-amber-600 hover:bg-amber-500 text-slate-950 px-4 py-2.5 rounded-xl font-black text-sm uppercase tracking-wide shrink-0 cursor-pointer transition-all"
                 >
-                  DISPATCH
+                  Send
                 </button>
               </form>
             </div>
@@ -880,19 +1053,24 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
         </div>
 
         {/* PANEL 2: MAP & DYNAMIC REROUTING (4 Columns) */}
-        <div className="xl:col-span-5 min-h-[560px] bg-slate-950/50 rounded-2xl border border-slate-800/80 p-3.5 flex flex-col overflow-hidden">
-          <div className="flex justify-between items-center mb-2">
+        <div className="xl:col-span-5 min-h-[560px] bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 flex flex-col overflow-hidden">
+          <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-200">
             <div>
-              <span className="text-[10px] font-mono tracking-wider text-slate-400 uppercase">
-                Interactive Architectural Map
-              </span>
-              <h3 className="text-xs font-bold text-slate-200 uppercase font-sans">
-                Floor 7 Pilot Plan (4 Irving Plaza)
+              <h3 className="text-base font-black text-slate-200 tracking-tight">
+                Floor 7 — 4 Irving Place HQ
               </h3>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">
+                As-Built · Jan 14 2026 · Drag to pan · Scroll to zoom
+              </p>
             </div>
-            <span className="text-[10px] bg-indigo-950 text-indigo-400 px-1.5 rounded font-mono">
-              RS-17 Compliant
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg font-bold">
+                RS-17 ✓
+              </span>
+              <span className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-300 px-2.5 py-1 rounded-lg font-bold">
+                NYC LL26
+              </span>
+            </div>
           </div>
 
           {/* Interactive architectural Floor plan (real photo + pan/zoom/fullscreen) */}
@@ -903,8 +1081,10 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
             onMouseUp={mapEndDrag}
             onMouseLeave={mapEndDrag}
             onWheel={mapOnWheel}
-            className={`flex-1 bg-slate-950 border border-slate-850 p-2.5 relative flex flex-col items-center justify-center overflow-hidden ${
-              mapFullscreen ? "h-full rounded-none" : "rounded-xl min-h-[360px]"
+            className={`flex-1 bg-white border-2 border-slate-200 shadow-inner relative flex flex-col items-center justify-center overflow-hidden ${
+              mapFullscreen
+                ? "h-full rounded-none"
+                : "rounded-2xl min-h-[420px]"
             }`}
             style={{ cursor: mapDragRef.current ? "grabbing" : "grab" }}
           >
@@ -913,39 +1093,39 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
               <button
                 type="button"
                 onClick={mapZoomIn}
-                className="w-7 h-7 flex items-center justify-center bg-slate-900/90 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:border-slate-500 transition-all cursor-pointer"
+                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-300 rounded-xl text-slate-600 hover:text-slate-200 hover:bg-slate-50 hover:border-amber-600 shadow-sm transition-all cursor-pointer"
                 title="Zoom in"
               >
-                <ZoomIn size={13} />
+                <ZoomIn size={15} />
               </button>
               <button
                 type="button"
                 onClick={mapZoomOut}
-                className="w-7 h-7 flex items-center justify-center bg-slate-900/90 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:border-slate-500 transition-all cursor-pointer"
+                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-300 rounded-xl text-slate-600 hover:text-slate-200 hover:bg-slate-50 hover:border-amber-600 shadow-sm transition-all cursor-pointer"
                 title="Zoom out"
               >
-                <ZoomOut size={13} />
+                <ZoomOut size={15} />
               </button>
               <button
                 type="button"
                 onClick={mapToggleFullscreen}
-                className="w-7 h-7 flex items-center justify-center bg-slate-900/90 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:border-slate-500 transition-all cursor-pointer"
+                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-300 rounded-xl text-slate-600 hover:text-slate-200 hover:bg-slate-50 hover:border-amber-600 shadow-sm transition-all cursor-pointer"
                 title={mapFullscreen ? "Exit full screen" : "Open full screen"}
               >
                 {mapFullscreen ? (
-                  <Minimize2 size={13} />
+                  <Minimize2 size={15} />
                 ) : (
-                  <Maximize2 size={13} />
+                  <Maximize2 size={15} />
                 )}
               </button>
               {(mapZoom !== 1 || mapPan.x !== 0 || mapPan.y !== 0) && (
                 <button
                   type="button"
                   onClick={mapReset}
-                  className="w-7 h-7 flex items-center justify-center bg-amber-900/80 border border-amber-700 rounded-lg text-amber-200 hover:text-white transition-all cursor-pointer"
+                  className="w-9 h-9 flex items-center justify-center bg-amber-600 border border-amber-500 rounded-xl text-white hover:bg-amber-500 shadow-sm transition-all cursor-pointer"
                   title="Reset view"
                 >
-                  <RotateCcw size={12} />
+                  <RotateCcw size={15} />
                 </button>
               )}
             </div>
@@ -2116,9 +2296,9 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                   drawn schematic when present so the map matches the actual sheet. */}
               {hasPlan && (
                 <>
-                  <rect x="0" y="0" width="740" height="500" fill="#0a0e19" />
+                  <rect x="0" y="0" width="740" height="500" fill="#ffffff" />
                   <image
-                    href="/building-plan.png"
+                    href="/floor7-plan.png"
                     x="0"
                     y="0"
                     width="740"
@@ -2128,144 +2308,185 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 </>
               )}
 
-              {/* Occupants dynamically plotted based on quadrant */}
+              {/* Occupants dynamically plotted based on quadrant — real building coordinates */}
               {occupants.map((occ, idx) => {
-                let coord = { x: 370, y: 250 };
-                if (hasPlan) {
-                  // Place markers over the building footprint of the real plan
-                  // (740x500 viewBox, image letterboxed with meet). Spread
-                  // multiple occupants in a wing so the dots don't overlap.
-                  const zones: Record<string, { x: number; y: number }> = {
-                    NW: { x: 300, y: 140 },
-                    NE: { x: 490, y: 150 },
-                    SW: { x: 290, y: 330 },
-                    SE: { x: 505, y: 345 },
-                    Center: { x: 400, y: 245 },
-                  };
-                  const base = zones[occ.quadrant] || zones.Center;
-                  const ring = idx % 6;
-                  coord = {
-                    x: base.x + ((ring % 3) - 1) * 18,
-                    y: base.y + (Math.floor(ring / 3) - 0.5) * 22,
-                  };
-                } else if (occ.id === "usr_a7f8c9d1") {
-                  coord = { x: 115, y: 155 }; // NW: usr_a7f8c9d1 (Warden, Safe)
-                } else if (occ.id === "usr_c1b2a3d4") {
-                  coord = { x: 145, y: 95 }; // NW: usr_c1b2a3d4 (Occupant, Missing)
-                } else if (occ.id === "usr_b3c7d6e5") {
-                  coord = { x: 535, y: 105 }; // NE: usr_b3c7d6e5 (Occupant, Need Help near flame)
-                } else if (occ.id === "usr_f9e3c2b8") {
-                  coord = { x: 360, y: 270 }; // Center: usr_f9e3c2b8 (Contractor, Missing)
-                } else if (occ.id === "usr_d4e3f2a1") {
-                  coord = { x: 380, y: 320 }; // Center: usr_d4e3f2a1 (FSD Officer, Safe)
-                } else if (occ.id === "usr_e5f6a7b8") {
-                  coord = { x: 605, y: 330 }; // SE: usr_e5f6a7b8 (Occupant, Fall sensor critical)
-                } else {
-                  // Fallback fallback fallback
-                  if (occ.quadrant === "NW") coord = { x: 120, y: 120 };
-                  else if (occ.quadrant === "NE") coord = { x: 510, y: 110 };
-                  else if (occ.quadrant === "SW") coord = { x: 180, y: 360 };
-                  else if (occ.quadrant === "SE") coord = { x: 540, y: 370 };
-                }
+                // Coordinate zones calibrated to the real 7th-floor As-Built plan
+                // (floor7-plan.png, 740x500 viewBox, xMidYMid meet, ~10px top letterbox).
+                // West = Irving Place, East = Third Ave, North = E 15th, South = E 14th.
+                const zones: Record<string, { x: number; y: number }> = {
+                  NW: { x: 160, y: 135 }, // 07-800 Strategic Planning (Irving Pl / E15)
+                  NE: { x: 470, y: 130 }, // 07-240 / 07-280 IRS (Third Ave / E15)
+                  SW: { x: 180, y: 300 }, // 07-700 AMI Implementation (Irving Pl / E14)
+                  SE: { x: 480, y: 305 }, // 07-400s office block (Third Ave / E14)
+                  Center: { x: 335, y: 215 }, // ELEV LOBBY C / courtyard core
+                };
+                const base = zones[occ.quadrant] || zones.Center;
+                // Spread occupants within each zone so dots don't overlap
+                const ring = idx % 8;
+                const spreadX = ((ring % 4) - 1.5) * 20;
+                const spreadY = (Math.floor(ring / 4) - 0.5) * 22;
+                const coord = { x: base.x + spreadX, y: base.y + spreadY };
 
-                const labelColor =
+                // Status colors
+                const statusColor =
                   occ.status === "SAFE"
-                    ? "text-emerald-400"
+                    ? "#10b981"
                     : occ.status === "CRITICAL"
-                      ? "text-red-400 font-bold animate-pulse"
+                      ? "#ef4444"
                       : occ.status === "NEED_HELP"
-                        ? "text-amber-400"
-                        : "text-slate-400";
+                        ? "#f59e0b"
+                        : "#94a3b8";
+
+                const isCritical = occ.status === "CRITICAL";
+                const isNeedHelp = occ.status === "NEED_HELP";
+                const isAlert = isCritical || isNeedHelp;
+                const isARA = occ.mobilityImpaired || occ.isAtARA;
+                const isWearable = occ.wearable;
+
+                // Short role label (2 chars)
+                const roleLabel =
+                  occ.role === "Warden"
+                    ? "W"
+                    : occ.role === "FSD"
+                      ? "F"
+                      : occ.role === "Searcher"
+                        ? "S"
+                        : occ.role === "Deputy"
+                          ? "D"
+                          : occ.role === "Visitor"
+                            ? "V"
+                            : occ.role === "Contractor"
+                              ? "C"
+                              : "O";
 
                 return (
                   <g key={occ.id} className="transition-all duration-500">
-                    {/* Ring highlight for helpful status visibility */}
+                    {/* Outer detection pulse ring (critical/need-help) */}
+                    {isAlert && (
+                      <circle
+                        cx={coord.x}
+                        cy={coord.y}
+                        r="18"
+                        fill="none"
+                        stroke={statusColor}
+                        strokeWidth="2"
+                        strokeOpacity="0.35"
+                        className="animate-ping"
+                        style={{
+                          animationDuration: isCritical ? "0.9s" : "1.6s",
+                          transformOrigin: `${coord.x}px ${coord.y}px`,
+                        }}
+                      />
+                    )}
+                    {/* Secondary ring */}
                     <circle
                       cx={coord.x}
                       cy={coord.y}
-                      r="10"
+                      r="13"
                       fill="none"
-                      stroke={
-                        occ.status === "SAFE"
-                          ? "#10b981"
-                          : occ.status === "CRITICAL"
-                            ? "#ef4444"
-                            : occ.status === "NEED_HELP"
-                              ? "#f59e0b"
-                              : "#94a3b8"
-                      }
-                      strokeWidth="1"
-                      strokeDasharray="2 2"
-                      className={
-                        occ.status === "CRITICAL" || occ.status === "NEED_HELP"
-                          ? "animate-spin"
-                          : ""
-                      }
+                      stroke={statusColor}
+                      strokeWidth="1.5"
+                      strokeDasharray={isAlert ? "none" : "3 3"}
+                      strokeOpacity={isAlert ? "0.7" : "0.5"}
+                      className={isAlert ? "animate-pulse" : ""}
                       style={{
+                        animationDuration: "2s",
                         transformOrigin: `${coord.x}px ${coord.y}px`,
-                        animationDuration: "5s",
                       }}
                     />
+                    {/* Main occupant dot */}
                     <circle
                       cx={coord.x}
                       cy={coord.y}
-                      r="6.5"
-                      fill={
-                        occ.status === "SAFE"
-                          ? "#10b981"
-                          : occ.status === "CRITICAL"
-                            ? "#ef4444"
-                            : occ.status === "NEED_HELP"
-                              ? "#f59e0b"
-                              : "#94a3b8"
-                      }
-                      stroke="#0f172a"
-                      strokeWidth="1.8"
+                      r="9"
+                      fill={statusColor}
+                      stroke="white"
+                      strokeWidth="2"
                     />
+                    {/* Role character inside dot */}
                     <text
                       x={coord.x}
-                      y={coord.y - 12}
-                      fill="#cbd5e1"
-                      fontSize="7"
+                      y={coord.y + 3.5}
+                      fill="white"
+                      fontSize="8"
+                      fontFamily="system-ui, sans-serif"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {roleLabel}
+                    </text>
+                    {/* ARA wheelchair icon */}
+                    {isARA && (
+                      <text
+                        x={coord.x + 11}
+                        y={coord.y - 7}
+                        fontSize="9"
+                        textAnchor="middle"
+                      >
+                        ♿
+                      </text>
+                    )}
+                    {/* Wearable sensor icon */}
+                    {isWearable && (
+                      <text
+                        x={coord.x - 11}
+                        y={coord.y - 7}
+                        fontSize="9"
+                        textAnchor="middle"
+                      >
+                        📡
+                      </text>
+                    )}
+                    {/* Name label */}
+                    <text
+                      x={coord.x}
+                      y={coord.y + 23}
+                      fill={
+                        occ.status === "SAFE"
+                          ? "#059669"
+                          : occ.status === "CRITICAL"
+                            ? "#dc2626"
+                            : occ.status === "NEED_HELP"
+                              ? "#d97706"
+                              : "#475569"
+                      }
+                      fontSize="7.5"
                       fontFamily="monospace"
                       fontWeight="bold"
                       textAnchor="middle"
-                      className={labelColor}
                     >
-                      {occ.id.replace("usr_", "").toUpperCase()}
+                      {occ.badgeId}
                     </text>
                   </g>
                 );
               })}
             </svg>
 
-            {/* Map Legend Overlay */}
-            <div className="absolute bottom-2 left-2 right-2 flex flex-wrap justify-between items-center gap-2 bg-slate-900/95 p-2 rounded-xl border border-slate-800 text-[8.5px] font-mono text-slate-300">
-              <div className="flex flex-wrap gap-2.5">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />{" "}
-                  Accounted Safe
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />{" "}
-                  Need Help
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />{" "}
-                  Critical (Fall Sensor)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />{" "}
-                  Missing / Unverified
-                </span>
-              </div>
-              <span className="text-[7.5px] text-slate-500 hidden md:inline">
-                Click any Stairway to assess structural clearance
+            {/* Map Legend — light theme */}
+            <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-3 bg-white/98 px-4 py-2.5 rounded-2xl border border-slate-300 shadow-md text-xs font-semibold text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block" />{" "}
+                Safe
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded-full bg-amber-500 inline-block" />{" "}
+                Need Help
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded-full bg-red-500 inline-block" />{" "}
+                Critical / Fall
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded-full bg-slate-400 inline-block" />{" "}
+                Missing
+              </span>
+              <span className="flex items-center gap-1.5 ml-auto text-slate-400 font-normal italic">
+                Drag to pan · scroll to zoom
               </span>
             </div>
           </div>
 
-          <p className="text-[9px] text-slate-400 mt-2 font-mono">
+          <p className="text-xs text-slate-600 mt-2 font-mono">
             * Stair B registers blockages on-click. Dynamic mesh notifications
             auto-dispatch reroute alerts over Bluetooth. All 7 emergency stair
             cores are LL26 and ConEdison pilot-compliant.
@@ -2273,7 +2494,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
         </div>
 
         {/* PANEL 3: HEADCOUNT & DYNAMIC LOCATOR BOARD */}
-        <div className="xl:col-span-4 min-h-[560px] bg-slate-950/50 rounded-2xl border border-slate-800/80 p-3.5 flex flex-col justify-between overflow-hidden">
+        <div className="xl:col-span-4 min-h-[560px] bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 flex flex-col justify-between overflow-hidden">
           <div className="flex flex-col flex-1 overflow-hidden">
             {/* Header Telemetry */}
             <div className="flex justify-between items-center mb-2 shrink-0">
@@ -2281,7 +2502,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 <MapPin size={12} className="text-amber-500 animate-pulse" />
                 <span>Headcount & Locator</span>
               </h3>
-              <span className="text-[9px] bg-slate-900 border border-slate-800 text-slate-300 px-2 py-0.5 rounded-lg font-mono font-medium">
+              <span className="text-xs bg-slate-100 border border-slate-300 text-slate-300 px-2 py-0.5 rounded-lg font-mono font-medium">
                 {occupants.filter((o) => o.status === "SAFE").length} /{" "}
                 {occupants.length} ACCOUNTED
               </span>
@@ -2297,12 +2518,12 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                   setFsdSearchQuery(e.target.value);
                   setLocatorPage(1); // Reset page on filter
                 }}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-[10.5px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-sm text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
 
             {/* Category tabs */}
-            <div className="grid grid-cols-3 gap-1 mb-2 bg-slate-900/40 p-1 rounded-xl border border-slate-850 shrink-0 select-none">
+            <div className="grid grid-cols-3 gap-1 mb-2 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 select-none">
               {(["ALL", "AT_RISK", "SAFE"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -2310,14 +2531,14 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                     setLocatorTab(tab);
                     setLocatorPage(1);
                   }}
-                  className={`py-1 text-[9px] font-mono font-bold rounded-lg transition-all ${
+                  className={`py-1 text-xs font-mono font-bold rounded-lg transition-all ${
                     locatorTab === tab
                       ? tab === "AT_RISK"
-                        ? "bg-red-950/60 text-red-400 border border-red-900/40"
+                        ? "bg-red-100 text-red-700 border border-red-300"
                         : tab === "SAFE"
-                          ? "bg-emerald-950/60 text-emerald-400 border border-emerald-900/40"
-                          : "bg-slate-800 text-white border border-slate-700"
-                      : "text-slate-400 hover:text-slate-250 cursor-pointer"
+                          ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
+                          : "bg-amber-600 text-white border border-amber-500"
+                      : "text-slate-500 hover:text-slate-300 cursor-pointer"
                   }`}
                 >
                   {tab === "ALL"
@@ -2339,10 +2560,10 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                       setLocatorSector(sect);
                       setLocatorPage(1);
                     }}
-                    className={`px-1.5 py-0.5 rounded text-[8.5px] font-mono leading-none border transition-all ${
+                    className={`px-1.5 py-0.5 rounded text-xs font-mono leading-none border transition-all ${
                       locatorSector === sect
-                        ? "bg-amber-955 text-amber-400 border-amber-800 font-bold"
-                        : "bg-slate-900/80 text-slate-500 border-slate-850/80 hover:text-slate-300 cursor-pointer"
+                        ? "bg-amber-600 text-white border-amber-500 font-bold"
+                        : "bg-slate-100 text-slate-600 border-slate-300 hover:text-slate-300 cursor-pointer"
                     }`}
                   >
                     {sect === "ALL" ? "All Sectors" : sect}
@@ -2359,14 +2580,14 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                     key={o.id}
                     className={`p-2 rounded-xl border flex flex-col justify-between transition-all ${
                       o.id === unsealedTokenId
-                        ? "bg-slate-900 border-amber-500/70 shadow-lg"
+                        ? "bg-slate-50 border-amber-500/70 shadow-lg"
                         : o.status === "CRITICAL"
-                          ? "bg-red-950/20 border-red-900/50 hover:bg-red-900/10"
+                          ? "bg-red-50 border-red-300 hover:bg-red-100/60"
                           : o.status === "NEED_HELP"
-                            ? "bg-amber-950/20 border-amber-900/40 hover:bg-amber-900/10"
+                            ? "bg-yellow-50 border-amber-300 hover:bg-yellow-100/60"
                             : o.status === "SAFE"
-                              ? "bg-emerald-950/15 border-emerald-900/30 hover:bg-emerald-900/10"
-                              : "bg-slate-900/40 border-slate-850 hover:bg-slate-850/50"
+                              ? "bg-emerald-50 border-emerald-300 hover:bg-emerald-100/60"
+                              : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                     }`}
                   >
                     <div className="flex justify-between items-start gap-1">
@@ -2397,18 +2618,18 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                         </div>
 
                         <div>
-                          <div className="text-[11px] font-bold font-mono text-slate-200 flex flex-wrap items-center gap-1">
+                          <div className="text-sm font-bold font-mono text-slate-200 flex flex-wrap items-center gap-1">
                             <span>
                               {unsealedTokenId === o.id && unsealedDetails
                                 ? unsealedDetails.name
                                 : o.nameEncrypted}
                             </span>
-                            <span className="text-[8px] text-slate-500 bg-slate-950 px-1 py-0.2 rounded font-normal font-mono border border-slate-850 uppercase">
+                            <span className="text-xs text-slate-500 bg-slate-100 px-1 py-0.2 rounded font-normal font-mono border border-slate-200 uppercase">
                               {o.id}
                             </span>
                           </div>
 
-                          <div className="text-[9px] text-slate-400 font-mono mt-0.5 leading-tight">
+                          <div className="text-xs text-slate-600 font-mono mt-0.5 leading-tight">
                             Badge {o.badgeId} • Role: {o.role} • Quadrant:{" "}
                             <span className="text-amber-400 font-semibold">
                               {o.quadrant}
@@ -2420,10 +2641,10 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                       {/* Decrypt Actions trigger */}
                       <button
                         onClick={() => handleUnsealFsd(o.id)}
-                        className={`text-[8px] font-mono font-bold leading-tight px-1.5 py-0.5 rounded border flex items-center gap-0.5 transition-all cursor-pointer ${
+                        className={`text-xs font-mono font-bold leading-tight px-1.5 py-0.5 rounded border flex items-center gap-0.5 transition-all cursor-pointer ${
                           unsealedTokenId === o.id
                             ? "bg-yellow-600 text-slate-950 border-yellow-500"
-                            : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700"
+                            : "bg-white text-slate-600 border-slate-200 hover:text-slate-100 hover:border-slate-300"
                         }`}
                       >
                         <Unlock size={8} />
@@ -2435,7 +2656,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
 
                     {/* Interactive JIT Decrypted Vault detail inline drawer */}
                     {unsealedTokenId === o.id && (
-                      <div className="mt-2 bg-slate-950/80 p-2 rounded-lg border border-amber-600/30 text-[9.5px] font-mono space-y-1 animate-fadeIn">
+                      <div className="mt-2 bg-slate-50 p-2 rounded-lg border border-amber-300 text-xs font-mono space-y-1 animate-fadeIn">
                         {isUnsealing ? (
                           <div className="flex items-center gap-1 text-slate-500">
                             <RefreshCw
@@ -2450,25 +2671,25 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                               src={unsealedDetails.photo}
                               alt="Unsealed preview"
                               referrerPolicy="no-referrer"
-                              className="w-8 h-8 rounded object-cover border border-slate-800 bg-slate-900 shrink-0"
+                              className="w-8 h-8 rounded object-cover border border-slate-200 bg-slate-100 shrink-0"
                             />
                             <div className="flex-1 min-w-0">
-                              <p className="text-amber-400 font-bold font-sans text-[10px] leading-tight">
+                              <p className="text-amber-400 font-bold font-sans text-sm leading-tight">
                                 {unsealedDetails.name}{" "}
-                                <span className="text-[7.5px] text-slate-500 font-mono">
+                                <span className="text-xs text-slate-500 font-mono">
                                   {unsealedDetails.role}
                                 </span>
                               </p>
-                              <p className="text-slate-400 text-[8.5px] mt-0.5 truncate">
+                              <p className="text-slate-400 text-xs mt-0.5 truncate">
                                 Dept: {unsealedDetails.department}
                               </p>
-                              <p className="text-slate-400 text-[8.5px] truncate">
+                              <p className="text-slate-400 text-xs truncate">
                                 Phone: {unsealedDetails.phone}
                               </p>
                             </div>
                           </div>
                         ) : (
-                          <p className="text-red-400">
+                          <p className="text-red-700">
                             Authorization link timed out.
                           </p>
                         )}
@@ -2476,41 +2697,41 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                     )}
 
                     {o.alertNote && (
-                      <div className="mt-1 bg-slate-950/40 px-1.5 py-0.5 rounded text-[8.5px] text-amber-300 italic line-clamp-1 border border-slate-900">
+                      <div className="mt-1 bg-slate-50 px-1.5 py-0.5 rounded text-xs text-amber-700 italic line-clamp-1 border border-slate-200">
                         “{o.alertNote}”
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center mt-1 text-[8px] font-mono text-slate-500">
+                    <div className="flex justify-between items-center mt-1 text-xs font-mono text-slate-500">
                       <span>Last Seen log: {o.lastSeen}</span>
                       <span>Stairwell: {o.staircase || "Unverified"}</span>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-slate-500 font-mono text-[9.5px] border border-dashed border-slate-850 rounded-xl">
+                <div className="text-center py-8 text-slate-600 font-mono text-xs border border-dashed border-slate-300 rounded-xl">
                   No personnel matching this filter.
                 </div>
               )}
             </div>
 
             {/* Pagination Panel (Click Page after Page) */}
-            <div className="flex justify-between items-center bg-slate-900/50 px-2 py-1.5 rounded-xl border border-slate-850 mt-2.5 shrink-0 select-none">
+            <div className="flex justify-between items-center bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200 mt-2.5 shrink-0 select-none">
               <button
                 disabled={activeLocatorPage === 1}
                 onClick={() => setLocatorPage((prev) => Math.max(1, prev - 1))}
-                className="text-[9px] font-mono bg-slate-950 hover:bg-slate-800 text-slate-350 border border-slate-800 px-2 py-1 rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-slate-950 cursor-pointer flex items-center gap-0.5"
+                className="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-300 border border-slate-300 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1"
               >
                 <ChevronLeft size={10} />
                 <span>PREV</span>
               </button>
 
-              <span className="text-[9px] font-mono text-slate-400">
+              <span className="text-xs font-mono text-slate-400">
                 PAGE{" "}
                 <span className="text-amber-400 font-bold">
                   {activeLocatorPage}
                 </span>{" "}
-                OF <span className="text-slate-200">{maxPage}</span>
+                OF <span className="text-slate-300">{maxPage}</span>
               </span>
 
               <button
@@ -2518,7 +2739,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 onClick={() =>
                   setLocatorPage((prev) => Math.min(maxPage, prev + 1))
                 }
-                className="text-[9px] font-mono bg-slate-950 hover:bg-slate-800 text-slate-350 border border-slate-800 px-2 py-1 rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-slate-950 cursor-pointer flex items-center gap-0.5"
+                className="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-300 border border-slate-300 px-3 py-1.5 rounded-lg transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1"
               >
                 <span>NEXT</span>
                 <ChevronRight size={10} />
@@ -2527,10 +2748,10 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
           </div>
 
           {/* Compliance generation */}
-          <div className="border-t border-slate-850 pt-3 mt-3 shrink-0">
+          <div className="border-t border-slate-200 pt-3 mt-3 shrink-0">
             <button
               onClick={generateFdnyReport}
-              className="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-100 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+              className="w-full bg-slate-700 hover:bg-slate-600 border border-slate-500 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
             >
               <FileText size={14} className="text-amber-500" />
               GENERATE PRE-ARRIVAL FDNY REPORT
@@ -2550,25 +2771,25 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
           FLOOR7_CENSUS.evacChairOccupants,
         );
         return (
-          <div className="mt-5 bg-slate-950/40 border border-amber-900/40 rounded-2xl p-4">
+          <div className="mt-5 bg-white border border-amber-200 rounded-2xl p-4">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-amber-900/30 pb-2 mb-3">
+            <div className="flex items-center justify-between border-b border-amber-200 pb-2 mb-3">
               <div className="flex items-center gap-1.5">
                 <Accessibility className="text-amber-400" size={14} />
-                <span className="text-xs font-bold tracking-tight text-amber-200">
+                <span className="text-xs font-bold tracking-tight text-amber-700">
                   ♿ EVAC-CHAIR LIST — Area of Rescue Assistance
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 {inTransit.length > 0 && (
-                  <span className="text-[8px] bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded font-mono font-bold uppercase animate-pulse">
+                  <span className="text-xs bg-red-100 text-red-700 border border-red-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase animate-pulse">
                     {inTransit.length} IN TRANSIT
                   </span>
                 )}
-                <span className="text-[8px] bg-blue-950 text-blue-300 border border-blue-800 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+                <span className="text-xs bg-blue-100 text-blue-700 border border-blue-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
                   STAGED {staged.length}/{denominator}
                 </span>
-                <span className="text-[8px] bg-slate-900 text-slate-500 border border-slate-800 px-1.5 py-0.5 rounded font-mono uppercase">
+                <span className="text-xs bg-slate-100 text-slate-600 border border-slate-300 px-1.5 py-0.5 rounded font-mono uppercase">
                   FDNY PRIORITY
                 </span>
               </div>
@@ -2576,7 +2797,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
 
             {/* Cards */}
             {sorted.length === 0 ? (
-              <p className="text-[10px] text-slate-500 font-mono py-1">
+              <p className="text-xs text-slate-500 font-mono py-1">
                 No evac-chair occupants in this roster.
               </p>
             ) : (
@@ -2589,49 +2810,49 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                       key={o.id}
                       className={`rounded-xl border p-2.5 flex flex-col gap-1.5 transition-all ${
                         isOpen
-                          ? "border-amber-500/70 shadow-lg bg-slate-900/60"
+                          ? "border-amber-500/70 shadow-lg bg-slate-50"
                           : isStaged
-                            ? "bg-blue-950/20 border-blue-800/40"
-                            : "bg-red-950/30 border-red-800/60"
+                            ? "bg-blue-50 border-blue-300"
+                            : "bg-red-50 border-red-300"
                       }`}
                     >
                       {/* Status + quadrant row */}
                       <div className="flex items-center justify-between gap-1">
                         <span
-                          className={`text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border ${
+                          className={`text-xs font-mono font-bold px-2.5 py-1 rounded uppercase border ${
                             isStaged
-                              ? "bg-blue-900/80 text-blue-300 border-blue-700"
-                              : "bg-red-900/80 text-red-300 border-red-700"
+                              ? "bg-blue-100 text-blue-700 border-blue-300"
+                              : "bg-red-100 text-red-700 border-red-300"
                           }`}
                         >
                           {isStaged ? "STAGED" : "IN TRANSIT"}
                         </span>
-                        <span className="text-[7.5px] font-mono text-slate-500 bg-slate-900 border border-slate-800 px-1 py-0.5 rounded">
+                        <span className="text-xs font-mono text-slate-600 bg-slate-100 border border-slate-200 px-1 py-0.5 rounded">
                           {o.quadrant}
                         </span>
                       </div>
 
                       {/* Name / token */}
                       <div>
-                        <p className="text-[10px] font-bold text-slate-100 leading-tight truncate">
+                        <p className="text-sm font-bold text-slate-200 leading-tight truncate">
                           {isOpen && unsealedDetails
                             ? unsealedDetails.name
                             : o.nameEncrypted}
                         </p>
-                        <p className="text-[8px] text-slate-500 font-mono truncate">
+                        <p className="text-xs text-slate-500 font-mono truncate">
                           {o.id}
                         </p>
                       </div>
 
                       {/* Badge ID */}
-                      <p className="text-[8px] font-mono text-slate-400">
+                      <p className="text-xs font-mono text-slate-600">
                         Badge:{" "}
                         <span className="text-slate-300">{o.badgeId}</span>
                       </p>
 
                       {/* Alert note */}
                       {o.alertNote && (
-                        <p className="text-[8px] text-amber-300 italic leading-tight line-clamp-2">
+                        <p className="text-xs text-amber-700 italic leading-tight line-clamp-2">
                           {o.alertNote}
                         </p>
                       )}
@@ -2640,10 +2861,10 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                       <button
                         type="button"
                         onClick={() => handleUnsealFsd(o.id)}
-                        className={`mt-auto text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border flex items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                        className={`mt-auto text-xs font-mono font-bold px-1.5 py-0.5 rounded border flex items-center justify-center gap-0.5 transition-all cursor-pointer ${
                           isOpen
                             ? "bg-yellow-600 text-slate-950 border-yellow-500"
-                            : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700"
+                            : "bg-white text-slate-600 border-slate-200 hover:text-slate-100 hover:border-slate-300"
                         }`}
                       >
                         <Unlock size={8} />
@@ -2652,7 +2873,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
 
                       {/* Inline vault drawer */}
                       {isOpen && (
-                        <div className="bg-slate-950/80 p-2 rounded-lg border border-amber-600/30 text-[9px] font-mono space-y-1">
+                        <div className="bg-slate-50 p-2 rounded-lg border border-amber-300 text-xs font-mono space-y-1">
                           {isUnsealing ? (
                             <div className="flex items-center gap-1 text-slate-500">
                               <RefreshCw
@@ -2682,7 +2903,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                               </div>
                             </div>
                           ) : (
-                            <p className="text-red-400">
+                            <p className="text-red-700">
                               Authorization timed out.
                             </p>
                           )}
@@ -2697,237 +2918,387 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
         );
       })()}
 
+      {/* ── ACTION PIPELINE — shows start-to-end flow for each ledger event ── */}
+      <div className="mt-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-base font-black text-slate-200 uppercase tracking-wide">
+              Action Pipeline
+            </span>
+          </div>
+          <span className="text-xs text-slate-500 font-mono">
+            Start → Validate → Encrypt → Chain → Confirm
+          </span>
+        </div>
+
+        <div className="space-y-2 overflow-y-auto max-h-44 no-scrollbar">
+          {ledger
+            .slice()
+            .reverse()
+            .slice(0, 8)
+            .map((block, i) => {
+              // Classify the event type
+              const isCritical =
+                block.event.toLowerCase().includes("critical") ||
+                block.event.toLowerCase().includes("fall");
+              const isSafe = block.event.toLowerCase().includes("safe");
+              const isDirective =
+                block.event.toLowerCase().includes("directive") ||
+                block.event.toLowerCase().includes("broadcast");
+              const isMesh =
+                block.event.toLowerCase().includes("mesh") ||
+                block.event.toLowerCase().includes("hmac");
+              const isFamily =
+                block.event.toLowerCase().includes("family") ||
+                block.event.toLowerCase().includes("sms");
+              const isAlarm =
+                block.event.toLowerCase().includes("alarm") ||
+                block.event.toLowerCase().includes("fire");
+
+              const typeColor = isCritical
+                ? "text-red-700 bg-red-100 border-red-300"
+                : isSafe
+                  ? "text-emerald-700 bg-emerald-100 border-emerald-300"
+                  : isDirective
+                    ? "text-amber-700 bg-amber-100 border-amber-300"
+                    : isMesh
+                      ? "text-yellow-700 bg-yellow-100 border-yellow-300"
+                      : isFamily
+                        ? "text-blue-700 bg-blue-100 border-blue-300"
+                        : isAlarm
+                          ? "text-red-700 bg-red-100 border-red-300"
+                          : "text-slate-300 bg-slate-100 border-slate-300";
+
+              const typeLabel = isCritical
+                ? "CRITICAL"
+                : isSafe
+                  ? "CHECK-IN"
+                  : isDirective
+                    ? "DIRECTIVE"
+                    : isMesh
+                      ? "MESH SYNC"
+                      : isFamily
+                        ? "FAMILY SMS"
+                        : isAlarm
+                          ? "ALARM"
+                          : "SYSTEM";
+
+              // Pipeline steps — all complete for past events (ledger blocks are immutable)
+              const steps = [
+                { label: "Trigger", done: true, icon: "⚡" },
+                { label: "Validate", done: true, icon: "✓" },
+                { label: "Encrypt", done: true, icon: "🔒" },
+                { label: "Chain", done: true, icon: "⛓" },
+                { label: "Confirmed", done: true, icon: "✅" },
+              ];
+
+              return (
+                <div
+                  key={block.index}
+                  className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5"
+                >
+                  {/* Event type badge */}
+                  <span
+                    className={`text-xs font-black px-2 py-1 rounded-lg border shrink-0 font-mono ${typeColor}`}
+                  >
+                    {typeLabel}
+                  </span>
+
+                  {/* Event description */}
+                  <span className="text-xs text-slate-600 font-medium truncate flex-1 min-w-0">
+                    {block.event.length > 60
+                      ? block.event.slice(0, 60) + "…"
+                      : block.event}
+                  </span>
+
+                  {/* Pipeline steps */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {steps.map((step, si) => (
+                      <div key={si} className="flex items-center gap-1">
+                        <div
+                          title={step.label}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-emerald-100 text-emerald-700 border border-emerald-300 shrink-0"
+                        >
+                          {step.icon}
+                        </div>
+                        {si < steps.length - 1 && (
+                          <div className="w-3 h-0.5 bg-emerald-300 shrink-0" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Block number + hash */}
+                  <div className="text-xs font-mono text-slate-400 shrink-0 text-right hidden lg:block">
+                    <div className="font-bold text-slate-600">
+                      #{block.index}
+                    </div>
+                    <div className="text-[10px]">{block.hash.slice(0, 8)}…</div>
+                  </div>
+                </div>
+              );
+            })}
+          {ledger.length === 0 && (
+            <div className="text-center py-6 text-slate-400 text-sm">
+              No pipeline events yet. Actions will appear here as they are
+              recorded.
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Down Layer bento expansions */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 mt-5">
-        {/* EH&S DISCOVERY & DEVELOPMENT ROADMAP (6 Columns) */}
-        <div className="xl:col-span-6 bg-slate-950/40 rounded-2xl border border-slate-800/80 p-4 flex flex-col h-[320px] overflow-hidden justify-between">
-          <div className="flex flex-col flex-1 overflow-hidden">
-            {/* Header Telemetry */}
-            <div className="flex justify-between items-center border-b border-slate-850 pb-2 mb-2 shrink-0 select-none">
-              <div className="flex items-center gap-1.5">
-                <Layers className="text-amber-500 animate-pulse" size={13} />
-                <span className="text-xs font-bold tracking-tight text-slate-200">
-                  EH&S FEASIBILITY DISCOVERY ROADMAP
-                </span>
-              </div>
-              <span className="text-[8px] bg-indigo-950/80 text-indigo-400 border border-indigo-900 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
-                6-WEEK DRILL LIFE-CYCLE
+        {/* LIVE INCIDENT KPIs — Floor 7 real-time metric board */}
+        <div className="xl:col-span-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col h-[320px]">
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-3 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <Activity className="text-amber-500" size={13} />
+              <span className="text-base font-bold tracking-tight text-slate-200">
+                LIVE INCIDENT KPIs
               </span>
             </div>
+            <span className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+              FLOOR 7 · {FLOOR7_CENSUS.totalOccupants} OCCUPANTS
+            </span>
+          </div>
 
-            {/* Three-tab progress selector */}
-            <div className="grid grid-cols-3 gap-1 mb-2 bg-slate-900/50 p-1 rounded-xl border border-slate-850/80 shrink-0 select-none">
-              {(["RESEARCH", "MOCKUPS", "BUILD"] as const).map((tab) => {
-                // Compute tab progress percentage
-                const tabTasks = ROADMAP_ITEMS[tab];
-                const completedCount = tabTasks.filter(
-                  (t) => completedRoadmap[t.key],
-                ).length;
-                const tabPct = Math.round(
-                  (completedCount / tabTasks.length) * 100,
-                );
+          {/* Elapsed timer + mode badges */}
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <div>
+              <div
+                className={`text-3xl font-mono font-black tracking-tight leading-none ${
+                  elapsedSeconds > 180
+                    ? "text-red-700"
+                    : elapsedSeconds > 90
+                      ? "text-amber-700"
+                      : "text-emerald-700"
+                }`}
+              >
+                {formatElapsed(elapsedSeconds)}
+              </div>
+              <div className="text-xs font-mono text-slate-500 uppercase tracking-wider mt-0.5">
+                ELAPSED · TARGET &lt; 3 MIN &middot; STRETCH &lt; 90 S
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1.5">
+              <span
+                className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${
+                  isDrill
+                    ? "bg-blue-100 text-blue-700 border-blue-300"
+                    : "bg-red-100 text-red-700 border-red-300"
+                }`}
+              >
+                {isDrill ? "● DRILL MODE" : "● REAL INCIDENT"}
+              </span>
+              <span
+                className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${
+                  isBlackout
+                    ? "bg-yellow-100 text-yellow-700 border-yellow-300 animate-pulse"
+                    : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                }`}
+              >
+                {isBlackout ? "⚠ MESH BLACKOUT" : "✓ CLOUD LINK UP"}
+              </span>
+            </div>
+          </div>
 
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => {
-                      setRoadmapTab(tab);
-                      if (tab === "RESEARCH") setActiveTaskKey("interview");
-                      if (tab === "MOCKUPS") setActiveTaskKey("feature_list");
-                      if (tab === "BUILD") setActiveTaskKey("dev_env");
-                      onLogEvent(`EH&S Roadmap switched to: ${tab}`);
-                    }}
-                    className={`py-1 text-[8.5px] font-mono font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
-                      roadmapTab === tab
-                        ? "bg-amber-600 text-slate-950 shadow font-extrabold"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    <span>
-                      {tab === "RESEARCH"
-                        ? "W1-W2 STUDY"
-                        : tab === "MOCKUPS"
-                          ? "W2 DESIGN"
-                          : "W3-W4 SPRINT"}
-                    </span>
-                    <span
-                      className={`text-[7px] font-mono ${roadmapTab === tab ? "text-slate-900" : "text-amber-500/80"}`}
-                    >
-                      {tabPct}% DONE
-                    </span>
-                  </button>
-                );
-              })}
+          {/* 6 KPI mini-cards */}
+          <div className="grid grid-cols-3 gap-2 flex-1">
+            {/* Accounted */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 flex flex-col justify-between">
+              <div className="text-xs font-bold font-mono text-slate-600 uppercase tracking-wider">
+                Accounted
+              </div>
+              <div className="text-2xl font-mono font-black text-amber-700 leading-none">
+                {occupants.filter((o) => o.status === "SAFE").length}
+                <span className="text-sm text-slate-500">
+                  /{FLOOR7_CENSUS.totalOccupants}
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 font-mono">
+                &lt; 180 s target
+              </div>
             </div>
 
-            {/* Content: Task List on Left, Active Task details on Right (Interactive Page view) */}
-            <div className="flex-1 grid grid-cols-12 gap-2.5 overflow-hidden">
-              {/* Task Cards Left List */}
-              <div className="col-span-5 flex flex-col gap-1 overflow-y-auto no-scrollbar">
-                {ROADMAP_ITEMS[roadmapTab].map((t) => {
-                  const isDone = !!completedRoadmap[t.key];
+            {/* ARA Evac-Chair */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 flex flex-col justify-between">
+              <div className="text-xs font-bold font-mono text-slate-600 uppercase tracking-wider">
+                ARA Red List
+              </div>
+              <div
+                className={`text-2xl font-mono font-black leading-none ${
+                  occupants.filter((o) => o.mobilityImpaired || o.isAtARA)
+                    .length >= FLOOR7_CENSUS.evacChairOccupants
+                    ? "text-emerald-700"
+                    : "text-amber-700"
+                }`}
+              >
+                {
+                  occupants.filter((o) => o.mobilityImpaired || o.isAtARA)
+                    .length
+                }
+                <span className="text-sm text-slate-500">
+                  /{FLOOR7_CENSUS.evacChairOccupants}
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 font-mono">
+                &lt; 30 s target
+              </div>
+            </div>
+
+            {/* Wearable Alerts */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 flex flex-col justify-between">
+              <div className="text-xs font-bold font-mono text-slate-600 uppercase tracking-wider">
+                Wearable Alerts
+              </div>
+              <div
+                className={`text-2xl font-mono font-black leading-none ${
+                  occupants.filter(
+                    (o) => o.status === "CRITICAL" || o.fallDetected,
+                  ).length > 0
+                    ? "text-red-700"
+                    : "text-emerald-700"
+                }`}
+              >
+                {
+                  occupants.filter(
+                    (o) => o.status === "CRITICAL" || o.fallDetected,
+                  ).length
+                }
+              </div>
+              <div className="text-xs text-slate-500 font-mono">
+                Red List &lt; 10 s
+              </div>
+            </div>
+
+            {/* Chain Integrity */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 flex flex-col justify-between">
+              <div className="text-xs font-bold font-mono text-slate-600 uppercase tracking-wider">
+                Chain Integrity
+              </div>
+              <div
+                className={`text-2xl font-mono font-black leading-none ${
+                  ledgerIntegrity.verified
+                    ? "text-emerald-700"
+                    : "text-red-700 animate-pulse"
+                }`}
+              >
+                {ledgerIntegrity.verified ? "100%" : "FAIL"}
+              </div>
+              <div className="text-xs text-slate-500 font-mono">
+                {ledger.length} blocks
+              </div>
+            </div>
+
+            {/* Zone Sweep Completion */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 flex flex-col justify-between">
+              <div className="text-xs font-bold font-mono text-slate-600 uppercase tracking-wider">
+                Zone Sweep
+              </div>
+              {(() => {
+                const quadrants = ["NW", "NE", "SW", "SE", "Center"] as const;
+                const swept = quadrants.filter((q) => {
+                  const inQuad = occupants.filter((o) => o.quadrant === q);
                   return (
-                    <button
-                      key={t.key}
-                      onClick={() => {
-                        setActiveTaskKey(t.key);
-                      }}
-                      className={`text-left p-1.5 rounded-lg border transition-all cursor-pointer flex flex-col justify-start select-none relative overflow-hidden ${
-                        activeTaskKey === t.key
-                          ? "bg-slate-900 border-amber-500/65 shadow-md text-amber-300"
-                          : "bg-slate-950/40 border-slate-900 text-slate-400 hover:border-slate-800"
+                    inQuad.length === 0 ||
+                    inQuad.every((o) => o.status !== "MISSING")
+                  );
+                }).length;
+                const rate = Math.round((swept / quadrants.length) * 100);
+                return (
+                  <>
+                    <div
+                      className={`text-2xl font-mono font-black leading-none ${
+                        rate >= 98
+                          ? "text-emerald-700"
+                          : rate >= 80
+                            ? "text-amber-700"
+                            : "text-red-700"
                       }`}
                     >
-                      <div className="flex items-center gap-1.5 w-full">
-                        {isDone ? (
-                          <CheckCircle
-                            className="text-emerald-500 shrink-0"
-                            size={10}
-                          />
-                        ) : (
-                          <Clock
-                            className="text-slate-500 shrink-0 animate-pulse"
-                            size={10}
-                          />
-                        )}
-                        <span className="text-[10px] font-semibold font-sans leading-tight truncate flex-1">
-                          {t.title}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center w-full mt-1">
-                        <span className="text-[7.5px] font-mono text-slate-500 truncate max-w-[70px]">
-                          {t.subtitle}
-                        </span>
-                        <span
-                          className={`text-[7px] font-mono font-bold px-1 rounded uppercase ${
-                            isDone
-                              ? "bg-emerald-950/60 text-emerald-400"
-                              : "bg-amber-950/60 text-amber-500"
-                          }`}
-                        >
-                          {isDone ? "VERIFIED" : "PENDING"}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Task Details Right Panel */}
-              {(() => {
-                const currentTask =
-                  ROADMAP_ITEMS[roadmapTab].find(
-                    (t) => t.key === activeTaskKey,
-                  ) || ROADMAP_ITEMS[roadmapTab][0];
-                const isTaskDone = !!completedRoadmap[currentTask.key];
-                return (
-                  <div className="col-span-7 bg-slate-950/60 rounded-xl border border-slate-900 p-2.5 flex flex-col justify-between overflow-y-auto no-scrollbar font-mono text-[9px] text-slate-400">
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-start gap-1">
-                        <span className="text-amber-400 font-bold text-[10px] leading-tight font-sans truncate">
-                          {currentTask.title}
-                        </span>
-                        <span className="text-[7.5px] text-slate-500 border border-slate-800 bg-slate-905 px-1 rounded truncate max-w-[90px] shrink-0">
-                          {currentTask.location}
-                        </span>
-                      </div>
-
-                      <p className="text-[8.5px] text-slate-350 leading-relaxed font-sans">
-                        {currentTask.desc}
-                      </p>
+                      {rate}%
                     </div>
-
-                    <div className="border-t border-slate-900 pt-1.5 mt-2 space-y-1.5">
-                      <div className="flex justify-between items-center text-[7.5px] text-slate-500">
-                        <span className="truncate max-w-[110px]">
-                          ASSIGNED: {currentTask.assigned}
-                        </span>
-                        <span className="text-amber-500/70 font-semibold animate-pulse shrink-0">
-                          ● OUTCOME
-                        </span>
-                      </div>
-
-                      <div className="bg-slate-900/40 p-1.5 rounded border border-slate-850 text-slate-200 text-[8.5px] leading-tight font-sans italic">
-                        {currentTask.outcome}
-                      </div>
-
-                      {/* Interactive toggle block */}
-                      <button
-                        onClick={() => handleToggleRoadmapTask(currentTask.key)}
-                        className={`w-full py-1 rounded font-sans text-[9px] font-bold border transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-97 select-none ${
-                          isTaskDone
-                            ? "bg-emerald-950/40 hover:bg-emerald-950/60 text-emerald-400 border-emerald-900/60"
-                            : "bg-amber-600 hover:bg-amber-500 text-slate-950 border-amber-500"
-                        }`}
-                      >
-                        {isTaskDone ? (
-                          <>
-                            <CheckCircle size={10} />
-                            <span>APPROVED (CLICK TO RE-OPEN)</span>
-                          </>
-                        ) : (
-                          <>
-                            <Play size={10} fill="currentColor" />
-                            <span>APPROVE & VERIFY TARGET DELIVERABLE</span>
-                          </>
-                        )}
-                      </button>
+                    <div className="text-xs text-slate-500 font-mono">
+                      ≥ 98% target ({swept}/{quadrants.length})
                     </div>
-                  </div>
+                  </>
                 );
               })()}
+            </div>
+
+            {/* FSD Coverage */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 flex flex-col justify-between">
+              <div className="text-xs font-bold font-mono text-slate-600 uppercase tracking-wider">
+                FSD Coverage
+              </div>
+              <div
+                className={`text-2xl font-mono font-black leading-none ${
+                  isBlackout ? "text-yellow-700" : "text-emerald-700"
+                }`}
+              >
+                {isBlackout
+                  ? `${Math.round(
+                      (occupants.filter((o) => Boolean(o.status)).length /
+                        FLOOR7_CENSUS.totalOccupants) *
+                        100,
+                    )}%`
+                  : "100%"}
+              </div>
+              <div className="text-xs text-slate-500 font-mono">
+                {isBlackout ? "BLE Mesh" : "SSE · ≥ 95% target"}
+              </div>
             </div>
           </div>
         </div>
 
         {/* AUDIT TIMELINE LEDGER SECURE HASH-CHAINING (6 Columns) */}
-        <div className="xl:col-span-6 bg-slate-950/40 rounded-2xl border border-slate-800/80 p-4 flex flex-col h-[320px]">
-          <div className="flex justify-between items-center border-b border-slate-850 pb-2 mb-3">
+        <div className="xl:col-span-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col h-[320px]">
+          <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-3">
             <div className="flex items-center gap-1.5">
               <Database className="text-amber-500" size={15} />
-              <span className="text-xs font-bold tracking-tight text-slate-200">
-                HASH-CHAINED SECURE AUDIT LEDGER
+              <span className="text-base font-black tracking-tight text-slate-200 uppercase">
+                Hash-Chained Audit Ledger
               </span>
             </div>
             {ledgerIntegrity.verified ? (
-              <span className="text-[8px] bg-emerald-950 text-emerald-400 border border-emerald-900 px-1.5 py-0.2 rounded font-mono font-bold flex items-center gap-0.5">
-                <ShieldCheck size={9} /> INTEGRITY 100% PASS
+              <span className="text-xs bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5">
+                <ShieldCheck size={13} /> Chain Verified
               </span>
             ) : (
-              <span className="text-[8px] bg-red-950 text-red-400 border border-red-800 px-1.5 py-0.2 rounded font-mono font-bold flex items-center gap-0.5 animate-pulse">
-                <ShieldX size={9} /> LEDGER TAMPERED!
+              <span className="text-xs bg-red-100 text-red-700 border border-red-300 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 animate-pulse">
+                <ShieldX size={13} /> Chain Tampered!
               </span>
             )}
           </div>
 
           {/* Ledger block list */}
-          <div className="flex-1 overflow-y-auto space-y-1.5 text-[10px] pr-1 font-mono text-slate-400 no-scrollbar">
+          <div className="flex-1 overflow-y-auto space-y-1.5 text-xs pr-1 font-mono text-slate-600 no-scrollbar">
             {ledger.map((b) => (
               <div
                 key={b.index}
                 className={`p-2 rounded-xl border flex flex-col gap-1 transition-all ${
                   isLedgerTampered && b.index === 1
-                    ? "bg-red-950/20 border-red-500/50 text-red-300 animate-pulse"
-                    : "bg-slate-900/30 border-slate-850"
+                    ? "bg-red-50 border-red-400/50 text-red-700 animate-pulse"
+                    : "bg-slate-50 border-slate-200"
                 }`}
               >
-                <div className="flex justify-between items-center text-[9px] pb-1 border-b border-slate-850/60 font-bold uppercase tracking-wide">
+                <div className="flex justify-between items-center text-xs pb-1 border-b border-slate-850/60 font-bold uppercase tracking-wide">
                   <span>Block #{b.index}</span>
-                  <span className="text-slate-500 text-[8px]">
-                    {b.timestamp}
-                  </span>
+                  <span className="text-slate-500 text-xs">{b.timestamp}</span>
                 </div>
-                <div className="text-[10px] text-slate-350 py-0.5">
+                <div className="text-xs text-slate-350 py-0.5">
                   Event:{" "}
-                  <span className="font-sans text-slate-200">{b.event}</span>
+                  <span className="font-sans text-slate-300">{b.event}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-[8px] mt-1 pt-1 border-t border-slate-850/30">
+                <div className="grid grid-cols-2 gap-2 text-xs mt-1 pt-1 border-t border-slate-850/30">
                   <span className="truncate text-slate-500">
                     Prev: {b.prevHash}
                   </span>
                   <span
-                    className={`truncate text-right ${isLedgerTampered && b.index === 1 ? "text-red-400 font-bold" : "text-slate-500"}`}
+                    className={`truncate text-right ${isLedgerTampered && b.index === 1 ? "text-red-700 font-bold" : "text-slate-500"}`}
                   >
                     Hash: <span className="text-gray-400">{b.hash}</span>
                   </span>
@@ -2937,17 +3308,17 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
           </div>
 
           {/* Hashing Ledger attack buttons */}
-          <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-slate-850">
+          <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-slate-200">
             <button
               onClick={onTamperLedger}
               disabled={isLedgerTampered}
-              className="bg-red-950/50 hover:bg-red-900/40 border border-red-900 text-red-200 text-[10px] font-bold py-1.5 rounded-xl transition-all disabled:opacity-40"
+              className="bg-red-50 hover:bg-red-100 border border-red-300 text-red-700 text-xs font-bold py-2.5 rounded-xl transition-all disabled:opacity-40"
             >
               👿 SIMULATE LEDGER ATTACK (TAMPER BLOCK #1)
             </button>
             <button
               onClick={onResetLedger}
-              className="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 text-[10px] py-1.5 rounded-xl transition-all"
+              className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-300 text-xs py-2.5 rounded-xl transition-all"
             >
               🔄 SECURE RESYNC & COMPROMISE ARREST
             </button>
@@ -2956,12 +3327,12 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
       </div>
 
       {/* PILOT SUCCESS METRICS — Floor 7 objectives scored live */}
-      <div className="mt-5 bg-slate-950/40 rounded-2xl border border-slate-800/80 p-4">
-        <div className="flex justify-between items-center border-b border-slate-850 pb-2 mb-3">
+      <div className="mt-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-3">
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="text-amber-500" size={15} />
-            <span className="text-xs font-bold tracking-tight text-slate-200">
-              PILOT SUCCESS METRICS — FLOOR 7
+            <span className="text-base font-black tracking-tight text-slate-200 uppercase">
+              Pilot Success Metrics — Floor 7
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -2977,10 +3348,10 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 onDispatchFamilySms && onDispatchFamilySms();
               }}
               disabled={isDrill}
-              className={`text-[9px] font-mono font-bold px-2 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+              className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border transition-all flex items-center gap-1 ${
                 isDrill
-                  ? "bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed"
-                  : "bg-emerald-900/60 text-emerald-300 border-emerald-700 hover:bg-emerald-800/60 cursor-pointer active:scale-95"
+                  ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                  : "bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200 cursor-pointer active:scale-95"
               }`}
               title={
                 isDrill
@@ -2991,19 +3362,19 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
               📱 Dispatch Family SAFE-SMS
             </button>
             <span
-              className="text-[8px] bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded font-mono font-bold uppercase"
+              className="text-xs bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase"
               title="Persisted records are kept in two isolated sets so drill data can never enter a real FDNY filing"
             >
-              <span className="text-red-400">REAL {recordStats.real}</span>
-              <span className="text-slate-600"> · </span>
-              <span className="text-blue-400">DRILL {recordStats.drill}</span>
+              <span className="text-red-700">REAL {recordStats.real}</span>
+              <span className="text-slate-500"> · </span>
+              <span className="text-blue-700">DRILL {recordStats.drill}</span>
             </span>
-            <span className="text-[8px] bg-indigo-950/80 text-indigo-400 border border-indigo-900 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+            <span className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
               Target vs Live
             </span>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {PILOT_GOALS.map((g) => {
             const pilotCtx: PilotGoalContext = {
               occupants,
@@ -3012,51 +3383,52 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
               elapsedSeconds,
               isBlackout,
               isDrill,
+              activeDirective,
               records: recordStats,
             };
             const r = g.evaluate(pilotCtx);
             const badge =
               r.status === "MET"
-                ? "bg-emerald-950/60 text-emerald-400 border-emerald-900/50"
+                ? "bg-emerald-100 text-emerald-700 border-emerald-300"
                 : r.status === "AT_RISK"
-                  ? "bg-red-950/60 text-red-400 border-red-900/50"
+                  ? "bg-red-100 text-red-700 border-red-300"
                   : r.status === "PENDING"
-                    ? "bg-slate-800 text-slate-400 border-slate-700"
-                    : "bg-amber-950/60 text-amber-400 border-amber-900/50";
+                    ? "bg-slate-100 text-slate-600 border-slate-300"
+                    : "bg-amber-100 text-amber-700 border-amber-300";
             const valueColor =
               r.status === "MET"
-                ? "text-emerald-400"
+                ? "text-emerald-700"
                 : r.status === "AT_RISK"
-                  ? "text-red-400"
+                  ? "text-red-700"
                   : r.status === "PENDING"
-                    ? "text-slate-400"
-                    : "text-amber-400";
+                    ? "text-slate-600"
+                    : "text-amber-700";
             return (
               <div
                 key={g.id}
-                className="rounded-xl border bg-slate-900/40 border-slate-850 p-2.5"
+                className="rounded-xl border bg-white border-slate-200 p-4 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-[10.5px] font-bold text-slate-200 leading-tight">
+                  <span className="text-sm font-bold text-slate-200 leading-tight">
                     {g.title}
                   </span>
                   <span
-                    className={`text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 border ${badge}`}
+                    className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 border ${badge}`}
                   >
                     {r.status.replace("_", " ")}
                   </span>
                 </div>
-                <div className="text-[8.5px] text-slate-500 font-mono mt-1">
+                <div className="text-xs text-slate-600 font-mono mt-1">
                   🎯 {g.target}
                   {g.stretch ? ` · stretch ${g.stretch}` : ""}
                 </div>
                 <div
-                  className={`text-[10px] font-mono font-bold mt-0.5 ${valueColor}`}
+                  className={`text-sm font-mono font-bold mt-0.5 ${valueColor}`}
                 >
                   {r.value}
                 </div>
                 {r.detail && (
-                  <div className="text-[8px] text-slate-500 mt-0.5 leading-tight">
+                  <div className="text-xs text-slate-500 mt-1 leading-tight border-t border-slate-200 pt-1">
                     {r.detail}
                   </div>
                 )}
@@ -3069,24 +3441,24 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
       {/* Pop up generated PDF Compliance report view */}
       {fdnyReport ? (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-5 shadow-2xl flex flex-col h-[520px]">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-3">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-5 shadow-2xl flex flex-col h-[520px]">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-3 mb-3">
               <h3 className="text-sm font-bold text-slate-200">
                 Legal Compliance Pre-Arrival Report
               </h3>
               <button
                 onClick={() => setFdnyReport(null)}
-                className="text-xs bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-white px-2 py-1 rounded"
+                className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-300 hover:text-slate-100 px-2 py-1 rounded"
               >
                 Close Report
               </button>
             </div>
 
-            <pre className="flex-1 bg-slate-950 text-slate-300 p-4 rounded-xl font-mono text-[9px] leading-relaxed overflow-auto border border-slate-850 select-text">
+            <pre className="flex-1 bg-slate-50 text-slate-300 p-4 rounded-xl font-mono text-xs leading-relaxed overflow-auto border border-slate-200 select-text">
               {fdnyReport}
             </pre>
 
-            <div className="mt-4 flex justify-between items-center text-[10px] font-mono text-slate-500">
+            <div className="mt-4 flex justify-between items-center text-xs font-mono text-slate-500">
               <span>
                 Ready for print output (FDNY handover time limit: &lt;5 mins)
               </span>
@@ -3094,7 +3466,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 onClick={() => {
                   window.print();
                 }}
-                className="bg-slate-800 hover:bg-slate-755 text-slate-200 text-[10px] font-mono px-3 py-1.5 rounded-lg border border-slate-700"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-300 text-xs font-mono px-3 py-2 rounded-lg border border-slate-300"
               >
                 Print PDF File
               </button>

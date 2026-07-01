@@ -250,53 +250,54 @@ export default function WardenTablet({
   const araStaged = araAll.filter((o) => Boolean(o.isAtARA));
 
   return (
-    <div className="w-full bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-2xl flex flex-col h-[710px] relative text-slate-100 overflow-hidden">
+    <div className="w-full bg-white rounded-3xl border border-slate-200 p-5 shadow-2xl flex flex-col min-h-[600px] relative text-slate-200 overflow-hidden">
       {/* Kiosk Status Header */}
-      <div className="flex justify-between items-center border-b border-slate-850 pb-3 mb-3">
+      <div className="flex justify-between items-center border-b border-slate-200 pb-4 mb-4">
         <div>
-          <div className="flex items-center gap-1.5 font-bold tracking-tight text-amber-500 text-sm">
-            <Radio size={14} className="animate-pulse" />
-            <span>WARDEN TACTICAL SHEATH</span>
+          <div className="flex items-center gap-2 text-amber-500">
+            <Radio size={16} className="animate-pulse" />
+            <span className="text-xl font-bold tracking-tight">
+              WARDEN DECK
+            </span>
           </div>
-          <p className="text-[10px] text-slate-400 uppercase font-mono mt-0.5">
+          <p className="text-sm text-slate-400 uppercase font-mono mt-1">
             [Kiosk Mode Active] QUADRANT: NW Engineering (4 Irving Plaza)
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {isBlackout ? (
-            <span className="text-[10px] bg-yellow-950/80 text-yellow-500 border border-yellow-800/60 px-2 py-0.5 rounded font-mono font-bold animate-pulse flex items-center gap-1">
+            <span className="text-sm bg-yellow-100 text-yellow-800 border border-yellow-400 px-3 py-1.5 rounded-lg font-mono font-bold animate-pulse flex items-center gap-1.5">
               <span>● MESH HOP</span>
             </span>
           ) : (
-            <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono font-bold">
+            <span className="text-sm bg-emerald-100 text-emerald-800 border border-emerald-400 px-3 py-1.5 rounded-lg font-mono font-bold">
               ● REAL-TIME CLOUD
             </span>
           )}
-          <span className="text-[11px] font-mono text-slate-400">
-            Bat: 100% ⚡
-          </span>
+          <span className="text-xs font-mono text-slate-400">Bat: 100% ⚡</span>
         </div>
       </div>
 
       {/* Real-time Emergency SOS Alert Notice Banner */}
       {occupants.some((o) => o.status === "CRITICAL") && (
         <div
-          className="bg-red-950/90 border border-red-500 rounded-2xl p-3 mb-3 text-xs flex flex-col gap-2 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse"
+          role="alert"
+          className="bg-red-50 border border-red-300 rounded-2xl p-4 mb-4 flex flex-col gap-3 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse"
           id="warden-sos-banner"
         >
-          <div className="flex items-start justify-between gap-2.5">
-            <div className="flex items-start gap-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
               <AlertOctagon
                 className="text-red-500 shrink-0 mt-0.5"
-                size={16}
+                size={20}
               />
               <div className="flex-1">
-                <span className="text-[9px] font-mono font-bold text-red-400 uppercase tracking-widest block mb-0.5">
+                <span className="text-sm font-bold text-red-700 uppercase tracking-widest block mb-1">
                   ⚠️ PRIORITY SOS PANIC ACTIVE
                 </span>
-                <p className="text-slate-205 font-sans text-[11px] leading-relaxed">
+                <p className="text-base text-slate-300 font-sans leading-relaxed">
                   Crisis beacon active for occupant{" "}
-                  <span className="font-bold text-white bg-red-900/60 px-1.5 py-0.5 rounded font-mono select-all ml-0.5">
+                  <span className="font-bold text-white bg-red-600 px-2 py-0.5 rounded font-mono select-all ml-1">
                     {occupants.find((o) => o.status === "CRITICAL")?.id}
                   </span>
                   . Device tilt sensor registered emergency trigger. Immediate
@@ -314,26 +315,26 @@ export default function WardenTablet({
                   requestVaultDecryption(emergencyUserId);
                 }
               }}
-              className="bg-red-600 hover:bg-red-500 text-white font-mono text-[9px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-wider transition-all active:scale-95 cursor-pointer shrink-0"
+              className="bg-red-600 hover:bg-red-500 text-white font-mono text-sm font-bold py-3 px-4 rounded-xl uppercase tracking-wider transition-all active:scale-95 cursor-pointer shrink-0"
               id="btn-unseal-emergency-user"
             >
-              LOCATE & UNSEAL
+              LOCATE &amp; UNSEAL
             </button>
           </div>
         </div>
       )}
 
       {/* Active F-89 Strategic Directive Banner */}
-      <div className="bg-gradient-to-r from-red-950/40 to-amber-950/30 border border-amber-900/40 rounded-2xl p-3 mb-3 text-xs flex flex-col gap-2 shadow-inner">
+      <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-4 flex flex-col gap-3">
         <div className="flex-1">
-          <span className="text-[9px] font-mono font-bold text-amber-500 uppercase tracking-widest block mb-1">
-            🚨 FDNY DIRECTIVE FROM FSD CORE STATION
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-600 block mb-1.5">
+            🚨 FSD DIRECTIVE — ACTION REQUIRED
           </span>
-          <p className="text-slate-100 font-sans text-[11px] font-semibold leading-relaxed">
+          <p className="text-base text-slate-200 font-sans font-semibold leading-relaxed">
             {activeDirective}
           </p>
         </div>
-        <div className="flex gap-1.5 justify-end">
+        <div className="flex gap-3 justify-end">
           <button
             onClick={() => {
               onLogEvent(
@@ -343,9 +344,9 @@ export default function WardenTablet({
                 "Strategic directive acknowledged. Logged to BLE Mesh Ledger.",
               );
             }}
-            className="bg-amber-600 hover:bg-amber-550 border border-amber-500/20 text-slate-950 px-2.5 py-1.5 rounded-lg text-[9.5px] font-mono font-bold uppercase transition-all active:scale-95 cursor-pointer"
+            className="bg-amber-600 text-white py-3 px-5 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer"
           >
-            ACK & RUN
+            ACK &amp; RUN
           </button>
           <button
             onClick={() => {
@@ -356,7 +357,7 @@ export default function WardenTablet({
                 "Northwest sector sweep confirmation dispatched over primary/mesh routing.",
               );
             }}
-            className="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-emerald-400 px-2.5 py-1.5 rounded-lg text-[9.5px] font-mono font-bold uppercase transition-all active:scale-95 cursor-pointer"
+            className="bg-emerald-600 text-white py-3 px-5 rounded-xl text-sm font-bold border border-emerald-500 transition-all active:scale-95 cursor-pointer"
           >
             CONFIRM CLEAR
           </button>
@@ -364,20 +365,36 @@ export default function WardenTablet({
       </div>
 
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 overflow-hidden mb-3">
-        {/* LEFT COLUMN: SCANNER & Keypad input (5 Columns) */}
-        <div className="md:col-span-6 bg-slate-950/70 rounded-2xl border border-slate-800/80 p-3.5 flex flex-col justify-between overflow-y-auto no-scrollbar">
+        {/* LEFT COLUMN: SCANNER & Keypad input (6 Columns) */}
+        <div className="md:col-span-6 bg-white rounded-2xl border border-slate-200 p-4 flex flex-col justify-between overflow-y-auto no-scrollbar">
           <div>
+            {/* Step 1 · Scan & Account header */}
+            <div className="mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                STEP 1 · SCAN &amp; ACCOUNT
+              </span>
+              <p className="text-xs text-slate-500 mt-1">
+                Scan each occupant's badge or QR to mark them SAFE.
+              </p>
+            </div>
+
             {/* Segment Tab Selector */}
-            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-900/90 border border-slate-800 rounded-xl mb-3 shrink-0 col-span-2">
+            <div
+              role="tablist"
+              aria-label="Scan mode"
+              className="grid grid-cols-2 gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded-xl mb-4 shrink-0"
+            >
               <button
                 onClick={() => {
                   setActiveScanMode("RFID");
                   setValidationError(null);
                 }}
-                className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all uppercase cursor-pointer ${
+                role="tab"
+                aria-selected={activeScanMode === "RFID"}
+                className={`py-3 text-sm font-mono font-bold rounded-lg transition-all uppercase cursor-pointer ${
                   activeScanMode === "RFID"
-                    ? "bg-slate-800 text-slate-100 border border-slate-700 shadow"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-white text-slate-200 border border-slate-300 shadow"
+                    : "text-slate-500 hover:text-slate-300"
                 }`}
                 id="tab-scan-rfid"
               >
@@ -388,61 +405,64 @@ export default function WardenTablet({
                   setActiveScanMode("QR");
                   setValidationError(null);
                 }}
-                className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all uppercase flex items-center justify-center gap-1 cursor-pointer ${
+                role="tab"
+                aria-selected={activeScanMode === "QR"}
+                className={`py-3 text-sm font-mono font-bold rounded-lg transition-all uppercase flex items-center justify-center gap-2 cursor-pointer ${
                   activeScanMode === "QR"
-                    ? "bg-slate-800 text-slate-100 border border-slate-700 shadow"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-white text-slate-200 border border-slate-300 shadow"
+                    : "text-slate-500 hover:text-slate-300"
                 }`}
                 id="tab-scan-qr"
               >
-                <QrCode size={11} className="text-emerald-400" />
+                <QrCode size={14} className="text-emerald-400" />
                 📷 QR Code Reader
               </button>
             </div>
 
             {activeScanMode === "RFID" ? (
               <>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-base font-bold font-mono tracking-wider text-slate-300 uppercase">
                     RFID Badge Gateway
                   </h3>
-                  <span className="text-[9px] bg-indigo-950/90 text-indigo-400 border border-indigo-900/50 px-1.5 py-0.2 rounded font-mono">
+                  <span className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-300 px-2.5 py-1 rounded-lg font-mono font-bold">
                     HMAC-SHA256
                   </span>
                 </div>
 
                 {/* Tap Badge graphic & simple search bar */}
-                <div className="bg-slate-900/60 border border-dashed border-slate-800 rounded-xl p-3.5 text-center mb-3">
+                <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-4 text-center mb-4">
                   <Smartphone
-                    className="mx-auto text-amber-500 animate-bounce mb-1"
-                    size={24}
+                    className="mx-auto text-amber-500 animate-bounce mb-2"
+                    size={28}
                   />
-                  <span className="text-[10px] block font-mono text-slate-400 uppercase tracking-widest">
+                  <span className="text-sm block font-mono text-slate-500 uppercase tracking-widest">
                     TAP OCCUPANT ID BADGE
                   </span>
-                  <p className="text-[9px] text-slate-500 mt-1">
+                  <p className="text-xs text-slate-400 mt-1.5">
                     Simulates NFC loop verification protocol.
                   </p>
                 </div>
 
                 {/* Keypad entry input */}
-                <div className="mb-2">
+                <div className="mb-3">
                   <input
                     type="text"
                     value={badgeIdField}
                     readOnly
+                    aria-label="Badge registration code"
                     placeholder="REGISTRATION CODE: e.g. NW112233"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 px-3 text-center font-mono text-sm text-yellow-400 placeholder:text-slate-600 focus:outline-none"
+                    className="w-full bg-white border border-slate-300 rounded-xl py-3 px-4 text-center font-mono text-base text-slate-200 placeholder:text-slate-400 focus:outline-none"
                   />
                 </div>
 
                 {/* Keypad grids */}
-                <div className="grid grid-cols-4 gap-1.5 max-w-[250px] mx-auto mb-3">
+                <div className="grid grid-cols-4 gap-2 max-w-[260px] mx-auto mb-4">
                   {["NW", "FA", "HR", "LS"].map((pfx) => (
                     <button
                       key={pfx}
                       onClick={() => setBadgeInputCombined(pfx)}
-                      className="bg-slate-850 hover:bg-slate-800 text-slate-100 font-mono text-[10px] py-1 border border-slate-750 rounded select-none font-bold active:bg-slate-700 cursor-pointer"
+                      className="bg-amber-600 hover:bg-amber-500 text-white font-mono text-sm py-2.5 border border-amber-500 rounded-lg select-none font-bold active:bg-amber-700 cursor-pointer"
                     >
                       {pfx}
                     </button>
@@ -451,7 +471,7 @@ export default function WardenTablet({
                     <button
                       key={num}
                       onClick={() => handleKeypadPress(num)}
-                      className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-xs py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
+                      className="bg-white hover:bg-slate-50 text-slate-200 font-mono text-base font-bold py-3 rounded-lg border border-slate-300 select-none active:bg-slate-100 cursor-pointer"
                     >
                       {num}
                     </button>
@@ -460,30 +480,30 @@ export default function WardenTablet({
                     <button
                       key={num}
                       onClick={() => handleKeypadPress(num)}
-                      className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-xs py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
+                      className="bg-white hover:bg-slate-50 text-slate-200 font-mono text-base font-bold py-3 rounded-lg border border-slate-300 select-none active:bg-slate-100 cursor-pointer"
                     >
                       {num}
                     </button>
                   ))}
-                  <div className="col-span-4 grid grid-cols-4 gap-1.5">
+                  <div className="col-span-4 grid grid-cols-4 gap-2">
                     {["9", "0"].map((num) => (
                       <button
                         key={num}
                         onClick={() => handleKeypadPress(num)}
-                        className="bg-slate-900 hover:bg-slate-850 text-slate-200 font-mono text-xs py-2 rounded border border-slate-800 select-none active:bg-slate-700 cursor-pointer"
+                        className="bg-white hover:bg-slate-50 text-slate-200 font-mono text-base font-bold py-3 rounded-lg border border-slate-300 select-none active:bg-slate-100 cursor-pointer"
                       >
                         {num}
                       </button>
                     ))}
                     <button
                       onClick={() => handleKeypadPress("CLR")}
-                      className="bg-red-950/60 text-red-400 hover:bg-red-900/40 text-[10px] font-mono py-2 rounded border border-red-900/60 font-bold active:bg-red-800/40 cursor-pointer"
+                      className="bg-red-100 text-red-700 hover:bg-red-200 text-sm font-mono font-bold py-3 rounded-lg border border-red-300 active:bg-red-200 cursor-pointer"
                     >
                       CLR
                     </button>
                     <button
                       onClick={() => handleKeypadPress("ENT")}
-                      className="bg-emerald-950/80 text-emerald-400 hover:bg-emerald-900/40 text-[10px] font-mono py-2 rounded border border-emerald-900/60 font-bold active:bg-emerald-800/40 cursor-pointer"
+                      className="bg-emerald-600 text-white hover:bg-emerald-500 text-sm font-mono font-bold py-3 rounded-lg border border-emerald-500 active:bg-emerald-700 cursor-pointer"
                     >
                       ENTER
                     </button>
@@ -492,16 +512,16 @@ export default function WardenTablet({
               </>
             ) : (
               /* QR CODE SCANNER VIEWPORT */
-              <div className="space-y-3 animate-fadeIn">
-                <div className="flex justify-between items-center bg-slate-900 p-2 rounded-xl border border-slate-800">
-                  <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">
+              <div className="space-y-4 animate-fadeIn">
+                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <h3 className="text-base font-bold font-mono tracking-wider text-slate-300 uppercase">
                     Muster Scan Reader
                   </h3>
                   <span
-                    className={`text-[9px] border px-1.5 py-0.5 rounded font-mono font-bold ${
+                    className={`text-xs border px-3 py-1 rounded-lg font-mono font-bold ${
                       isScanning
-                        ? "bg-amber-950 text-amber-400 border-amber-800 animate-pulse"
-                        : "bg-emerald-950 text-emerald-400 border-emerald-800/40 animate-pulse"
+                        ? "bg-amber-100 text-amber-700 border-amber-300 animate-pulse"
+                        : "bg-emerald-100 text-emerald-700 border-emerald-300 animate-pulse"
                     }`}
                   >
                     {isScanning
@@ -528,7 +548,7 @@ export default function WardenTablet({
                   />
 
                   {/* Top Feed Telemetry Overlay */}
-                  <div className="w-full flex justify-between items-start text-[8px] text-emerald-500/80 uppercase tracking-wider select-none z-10">
+                  <div className="w-full flex justify-between items-start text-xs text-emerald-500/80 uppercase tracking-wider select-none z-10">
                     <div className="flex flex-col text-left">
                       <span>REC: 4K 60FPS</span>
                       <span>DEV: TERM-NW01</span>
@@ -554,7 +574,7 @@ export default function WardenTablet({
                       size={24}
                     />
                     {isScanning && (
-                      <div className="absolute inset-0 bg-emerald-500/15 flex items-center justify-center font-mono text-[9px] text-emerald-400 font-bold backdrop-blur-xs">
+                      <div className="absolute inset-0 bg-emerald-500/15 flex items-center justify-center font-mono text-xs text-emerald-400 font-bold backdrop-blur-xs">
                         ACQUIRING...
                       </div>
                     )}
@@ -562,26 +582,27 @@ export default function WardenTablet({
 
                   {/* Bottom Guide Text */}
                   <div className="w-full text-center z-10 select-none">
-                    <span className="text-[9px] block text-emerald-400 font-bold uppercase tracking-widest leading-none">
+                    <span className="text-sm block text-emerald-400 font-bold uppercase tracking-widest leading-none">
                       ALIGN ENCRYPTED PASS QR
                     </span>
-                    <p className="text-[7.5px] text-slate-500 mt-1 leading-none uppercase">
+                    <p className="text-xs text-slate-500 mt-1.5 leading-none uppercase">
                       SUPPORTED PROTOCOL: CRYPTO-MUSTER v2
                     </p>
                   </div>
                 </div>
 
                 {/* Selected user qr code emulator selector */}
-                <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/60 space-y-2">
-                  <label className="block text-[9px] font-mono uppercase text-slate-400">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-3">
+                  <label className="block text-xs font-mono uppercase text-slate-500 font-bold">
                     Target Mobile Occupant to Scan:
                   </label>
 
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-2">
                     <select
                       value={selectedQrUser}
+                      aria-label="Target mobile occupant to scan"
                       onChange={(e) => setSelectedQrUser(e.target.value)}
-                      className="flex-1 bg-slate-950 border border-slate-805 rounded-lg px-2 py-1 text-xs text-slate-350 font-mono focus:outline-none"
+                      className="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-300 font-mono focus:outline-none"
                     >
                       <option value="">-- Choose scannable user --</option>
                       {occupants.map((occ) => (
@@ -634,12 +655,12 @@ export default function WardenTablet({
                           }
                         }, 750);
                       }}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer shrink-0"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white py-3 px-4 rounded-xl text-sm font-mono font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer shrink-0"
                     >
                       SCAN QR
                     </button>
                   </div>
-                  <p className="text-[8.5px] text-indigo-400 font-mono leading-tight">
+                  <p className="text-xs text-indigo-700 font-mono leading-snug">
                     💡 Tip: Alice (usr_b3c7d6e5) is the mock user on the left
                     mobile device. Customize her options on the phone, generate
                     the QR Pass, then scan her instantly here!
@@ -649,20 +670,29 @@ export default function WardenTablet({
             )}
 
             {validationError && (
-              <div className="bg-red-950/95 border border-red-800 text-red-200 rounded p-2 text-[9px] font-mono leading-tight mb-2">
+              <div className="bg-red-50 border border-red-300 text-red-800 rounded-xl p-3 text-sm font-semibold mb-3">
                 {validationError}
               </div>
             )}
           </div>
 
+          {/* Step 2 · Verify Identity (JIT Vault) */}
+          <div className="mt-4 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+              STEP 2 · VERIFY IDENTITY
+            </span>
+            <p className="text-xs text-slate-500 mt-1">
+              Just-in-time vault decrypt — renders in RAM, auto-wipes in 5s.
+            </p>
+          </div>
           {/* JIT Vault Decryption Panel (Layer 5) */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex-1 flex flex-col justify-center min-h-[140px]">
-            <div className="flex justify-between items-center mb-1 pb-1 border-b border-slate-800">
-              <div className="flex items-center gap-1 text-[11px] font-mono text-amber-500 font-semibold">
-                <ShieldAlert size={12} />
-                <span>JIT VAULT DISPLAY PLIABLE DECRYPTION</span>
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex-1 flex flex-col justify-center min-h-[140px]">
+            <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-200">
+              <div className="flex items-center gap-2 text-sm font-bold font-mono text-amber-500">
+                <ShieldAlert size={14} />
+                <span>JIT VAULT · IDENTITY DECRYPT</span>
               </div>
-              <span className="text-[8px] bg-red-900/80 text-red-200 px-1 py-0.2 rounded font-mono uppercase">
+              <span className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-lg font-mono uppercase font-bold">
                 Active RAM Only
               </span>
             </div>
@@ -670,46 +700,46 @@ export default function WardenTablet({
             {isDecrypting ? (
               <div className="text-center py-4 space-y-2">
                 <RefreshCw
-                  size={18}
+                  size={20}
                   className="animate-spin mx-auto text-amber-500"
                 />
-                <span className="text-[10px] font-mono text-slate-400">
+                <span className="text-xs font-mono text-slate-400">
                   Unsealing key map via TLS 1.3...
                 </span>
               </div>
             ) : decryptedProfile ? (
-              <div className="text-gray-200 flex items-start gap-3 mt-1.5 animate-fadeIn">
+              <div className="text-slate-300 flex items-start gap-3 mt-2 animate-fadeIn">
                 <img
                   src={decryptedProfile.photo}
                   alt="Decrypted occupant preview"
                   referrerPolicy="no-referrer"
-                  className="w-12 h-12 rounded-lg object-cover border border-slate-700 bg-slate-800"
+                  className="w-14 h-14 rounded-xl object-cover border border-slate-300 bg-slate-100 shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold font-sans text-amber-400 flex items-center justify-between">
+                  <div className="text-base font-bold text-slate-200 flex items-center justify-between">
                     <span>{decryptedProfile.name}</span>
-                    <span className="text-[8px] font-mono text-slate-500">
+                    <span className="text-xs font-mono text-slate-500 font-normal">
                       Decrypted
                     </span>
                   </div>
-                  <div className="text-[10px] text-slate-300 font-medium">
+                  <div className="text-sm text-slate-600 font-medium mt-0.5">
                     {decryptedProfile.role}
                   </div>
-                  <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                  <div className="text-sm text-slate-500 font-mono mt-0.5">
                     {decryptedProfile.department}
                   </div>
-                  <div className="text-[9px] text-slate-400 font-mono">
+                  <div className="text-sm text-slate-500 font-mono">
                     {decryptedProfile.phone}
                   </div>
 
                   {/* Dynamic clear badge */}
-                  <div className="flex justify-between items-center mt-2 bg-slate-950/80 p-1 rounded border border-slate-800">
-                    <span className="text-[8px] text-yellow-500 font-mono flex items-center gap-0.5">
-                      <Clock size={8} /> Auto-wipe in progress
+                  <div className="flex justify-between items-center mt-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    <span className="text-xs text-slate-600 flex items-center gap-1">
+                      <Clock size={10} /> Auto-wipe in progress
                     </span>
                     <button
                       onClick={nullifyMemory}
-                      className="text-[8px] bg-red-950/85 hover:bg-red-900/50 text-red-400 px-1 rounded border border-red-900 font-mono"
+                      className="bg-red-100 hover:bg-red-200 text-red-700 py-2 px-3 rounded-lg border border-red-300 font-bold text-sm"
                     >
                       NULLIFY RAM
                     </button>
@@ -717,7 +747,7 @@ export default function WardenTablet({
                 </div>
               </div>
             ) : (
-              <div className="text-center py-4 text-slate-500 font-mono text-[9px]">
+              <div className="text-center py-4 text-slate-500 font-mono text-xs">
                 No active decryption lease in storage. Scanned cards will unseal
                 a 5s memory leak-proof profile view.
               </div>
@@ -725,51 +755,61 @@ export default function WardenTablet({
           </div>
         </div>
 
-        {/* RIGHT COLUMN: ROSTER LIST (7 Columns) */}
-        <div className="md:col-span-6 bg-slate-950/70 rounded-2xl border border-slate-800/80 p-3.5 flex flex-col justify-between overflow-hidden">
+        {/* RIGHT COLUMN: ROSTER LIST (6 Columns) */}
+        <div className="md:col-span-6 bg-white rounded-2xl border border-slate-200 p-4 flex flex-col justify-between overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Search and filtering */}
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xs font-mono tracking-wider text-slate-300 uppercase">
-                Interactive Roster Ledger
-              </h3>
-              <div className="relative w-36">
+            {/* Step 3 · Sector Roster header */}
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                  STEP 3 · SECTOR ROSTER
+                </span>
+                <p className="text-xs text-slate-500 mt-1">
+                  Track who is accounted for in your sector.
+                </p>
+              </div>
+              <div className="relative w-44 shrink-0">
                 <Search
-                  className="absolute left-2 top-2 text-slate-500"
-                  size={12}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  size={14}
                 />
                 <input
                   type="text"
                   placeholder="Filter occupant..."
+                  aria-label="Filter sector roster"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-6 pr-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
             </div>
 
             {/* ARA Evac-Chair strip — always visible to warden */}
             {araAll.length > 0 && (
-              <div className="mb-2 shrink-0 bg-amber-950/30 border border-amber-800/50 rounded-xl p-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
+              <div
+                role="group"
+                aria-label={`ARA evac-chair priority: ${araInTransit.length} in transit, ${araStaged.length} staged, ${araAll.length} total`}
+                className="mb-3 shrink-0 bg-amber-50 border border-amber-300 ring-1 ring-amber-200 rounded-xl p-3 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-2">
                   <Accessibility
-                    size={12}
-                    className="text-amber-400 shrink-0"
+                    size={16}
+                    className="text-amber-500 shrink-0"
                   />
-                  <span className="text-[9px] font-mono font-bold text-amber-300 uppercase tracking-wide">
-                    ♿ ARA — Evac-Chair
+                  <span className="text-sm font-bold font-mono text-amber-600 uppercase tracking-wide">
+                    ♿ ARA · EVAC-CHAIR PRIORITY
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {araInTransit.length > 0 && (
-                    <span className="text-[7.5px] font-mono font-bold bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded uppercase animate-pulse">
+                    <span className="text-xs font-mono font-bold bg-red-100 text-red-700 border border-red-300 px-3 py-1 rounded-lg uppercase animate-pulse">
                       {araInTransit.length} IN TRANSIT
                     </span>
                   )}
-                  <span className="text-[7.5px] font-mono font-bold bg-blue-950 text-blue-300 border border-blue-800 px-1.5 py-0.5 rounded uppercase">
+                  <span className="text-xs font-mono font-bold bg-blue-100 text-blue-700 border border-blue-300 px-3 py-1 rounded-lg uppercase">
                     {araStaged.length} STAGED
                   </span>
-                  <span className="text-[7.5px] font-mono text-amber-500 border border-amber-900 bg-amber-950/40 px-1.5 py-0.5 rounded uppercase">
+                  <span className="text-xs font-mono font-bold bg-amber-100 text-amber-700 border border-amber-300 px-3 py-1 rounded-lg uppercase">
                     {araAll.length} TOTAL
                   </span>
                 </div>
@@ -777,38 +817,48 @@ export default function WardenTablet({
             )}
 
             {/* Missing vs Safe tabs */}
-            <div className="grid grid-cols-3 gap-1 mb-2.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800/80">
+            <div
+              role="tablist"
+              aria-label="Roster filter"
+              className="grid grid-cols-3 gap-2 mb-3 bg-slate-50 p-1.5 rounded-xl border border-slate-200"
+            >
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === "MISSING"}
                 onClick={() => setActiveTab("MISSING")}
-                className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all ${
+                className={`py-2.5 text-sm font-mono font-bold rounded-lg transition-all ${
                   activeTab === "MISSING"
-                    ? "bg-red-950 text-red-400 border border-red-900/40"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-red-100 text-red-700 border border-red-300"
+                    : "text-slate-500 hover:text-slate-300"
                 }`}
               >
                 MISSING ({missingCount})
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === "VISITORS"}
                 onClick={() => setActiveTab("VISITORS")}
-                className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all flex items-center justify-center gap-0.5 ${
+                className={`py-2.5 text-sm font-mono font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
                   activeTab === "VISITORS"
-                    ? "bg-amber-950 text-amber-400 border border-amber-900/40"
+                    ? "bg-amber-100 text-amber-700 border border-amber-300"
                     : visitorUnaccounted > 0
-                      ? "text-amber-500 hover:text-amber-300"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "text-amber-500 hover:text-amber-700"
+                      : "text-slate-500 hover:text-slate-300"
                 }`}
               >
                 VISITORS ({visitorCount})
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === "SAFE"}
                 onClick={() => setActiveTab("SAFE")}
-                className={`py-1.5 text-[10px] font-mono font-bold rounded-lg transition-all ${
+                className={`py-2.5 text-sm font-mono font-bold rounded-lg transition-all ${
                   activeTab === "SAFE"
-                    ? "bg-emerald-950 text-emerald-400 border border-emerald-900/40"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
+                    : "text-slate-500 hover:text-slate-300"
                 }`}
               >
                 SAFE ({safeCount})
@@ -816,25 +866,25 @@ export default function WardenTablet({
             </div>
 
             {/* Scrollable roster items list */}
-            <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 no-scrollbar">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-0.5 no-scrollbar">
               {filteredOccupants.length > 0 ? (
                 filteredOccupants.map((occ) => (
                   <div
                     key={occ.id}
                     onClick={() => requestVaultDecryption(occ.id)}
-                    className={`p-2 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${
+                    className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${
                       occ.status === "SAFE"
-                        ? "bg-emerald-950/20 border-emerald-900/30 hover:bg-emerald-900/20"
+                        ? "bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
                         : occ.status === "CRITICAL"
-                          ? "bg-red-950/30 border-red-800/50 hover:bg-red-900/20 animate-pulse"
+                          ? "bg-red-50 border-red-200 hover:bg-red-100 animate-pulse"
                           : occ.status === "NEED_HELP"
-                            ? "bg-amber-950/30 border-amber-800/50 hover:bg-amber-900/20"
-                            : "bg-slate-900/40 border-slate-800/85 hover:bg-slate-850"
+                            ? "bg-yellow-50 border-yellow-200 hover:bg-yellow-100"
+                            : "bg-white border-slate-200 hover:bg-slate-50"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <div
-                        className={`w-2 h-2 rounded-full ${
+                        className={`w-3 h-3 rounded-full shrink-0 ${
                           occ.status === "SAFE"
                             ? "bg-emerald-400"
                             : occ.status === "CRITICAL"
@@ -845,45 +895,45 @@ export default function WardenTablet({
                         }`}
                       />
                       <div>
-                        <div className="text-[11px] font-mono font-bold text-slate-200">
+                        <div className="text-sm font-bold text-slate-200 flex items-center gap-1.5 flex-wrap">
                           {occ.id === decryptedToken && decryptedProfile
                             ? decryptedProfile.name
                             : occ.nameEncrypted}
-                          <span className="text-[8px] font-normal text-slate-400 bg-slate-850 border border-slate-800/80 px-1 rounded ml-1.5 font-mono">
+                          <span className="text-xs text-slate-500 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded font-mono">
                             {occ.id}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[9px] text-slate-400 flex-wrap">
+                        <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-600 flex-wrap">
                           <span>Badge: {occ.badgeId}</span>
                           <span>|</span>
                           <span>Quadrant: {occ.quadrant}</span>
                           {occ.isVisitor && (
-                            <span className="text-[7.5px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-800/60 px-1 py-0.5 rounded uppercase">
+                            <span className="text-xs font-mono font-bold bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded-lg uppercase">
                               VISITOR
                             </span>
                           )}
                         </div>
                         {occ.alertNote && (
-                          <div className="text-[8.5px] text-amber-300 font-medium italic mt-0.5 line-clamp-1">
-                            “{occ.alertNote}”
+                          <div className="text-xs text-red-700 font-medium italic mt-0.5 line-clamp-1">
+                            "{occ.alertNote}"
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <div className="text-[9px] font-mono font-bold text-slate-400">
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-mono font-bold text-slate-400 mb-1">
                         {occ.lastSeen}
                       </div>
                       <span
-                        className={`text-[8px] font-bold font-mono uppercase px-1.5 py-0.2 rounded mt-1 inline-block ${
+                        className={`text-xs font-bold font-mono uppercase px-2.5 py-1 rounded-lg inline-block border ${
                           occ.status === "SAFE"
-                            ? "bg-emerald-950 text-emerald-400"
+                            ? "bg-emerald-100 text-emerald-700 border-emerald-300"
                             : occ.status === "CRITICAL"
-                              ? "bg-red-950 text-red-400 border border-red-900"
+                              ? "bg-red-100 text-red-700 border-red-300"
                               : occ.status === "NEED_HELP"
-                                ? "bg-amber-950 text-amber-500 border border-amber-900"
-                                : "bg-gray-950 text-gray-400 border border-gray-800"
+                                ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                : "bg-slate-100 text-slate-300 border-slate-300"
                         }`}
                       >
                         {occ.status}
@@ -892,44 +942,49 @@ export default function WardenTablet({
                   </div>
                 ))
               ) : (
-                <div className="text-center py-12 text-slate-500 font-mono text-[10px]">
+                <div className="text-center py-12 text-slate-500 font-mono text-xs">
                   No matching occupants under this filter.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Table quick actions */}
-          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-850">
-            <button
-              onClick={handleAttestQuadrant}
-              className="bg-amber-600 hover:bg-amber-500 border border-amber-400/30 text-slate-950 text-[10.5px] font-bold py-2 rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95 shadow-md"
-            >
-              <UserCheck size={13} />
-              ATTEST QUADRANT SAFE
-            </button>
-            <button
-              onClick={() => {
-                onLogEvent(
-                  "Warden NW issued priority HOST notification: REQUESTING PARAMEDIC BACKUP NEAR SE QUADRANT COMPARTMENT.",
-                );
-                alert(
-                  "Incident Host successfully notified via Bluetooth Mesh packet sync!",
-                );
-              }}
-              className="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 text-[10px] font-mono font-bold py-2 rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95"
-            >
-              <AlertOctagon size={13} className="text-amber-500" />
-              NOTIFY HOST
-            </button>
+          {/* Step 4 · Sector Actions */}
+          <div className="mt-4 pt-3 border-t border-slate-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
+              STEP 4 · SECTOR ACTIONS
+            </span>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleAttestQuadrant}
+                className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md cursor-pointer"
+              >
+                <UserCheck size={15} />
+                ATTEST QUADRANT SAFE
+              </button>
+              <button
+                onClick={() => {
+                  onLogEvent(
+                    "Warden NW issued priority HOST notification: REQUESTING PARAMEDIC BACKUP NEAR SE QUADRANT COMPARTMENT.",
+                  );
+                  alert(
+                    "Incident Host successfully notified via Bluetooth Mesh packet sync!",
+                  );
+                }}
+                className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-200 text-sm font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+              >
+                <AlertOctagon size={15} className="text-amber-500" />
+                NOTIFY HOST
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Sync footer */}
-      <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 border-t border-slate-850 pt-2.5">
-        <span className="flex items-center gap-1">
-          <HardDrive size={10} className="text-slate-400" />
+      <div className="flex justify-between items-center text-xs text-slate-500 border-t border-slate-200 pt-3">
+        <span className="flex items-center gap-1.5">
+          <HardDrive size={12} className="text-slate-400" />
           <span>Local Store Encrypted via AES-256 (SQLCipher)</span>
         </span>
         <span>Last Sync: Just Now via P2P Mesh</span>

@@ -1,1 +1,271 @@
 @import "tailwindcss";
+
+/* ============================================================================
+   MusterCommand — ConEdison White & Blue Theme
+   Floor 7 Pilot · 4 Irving Plaza
+   ----------------------------------------------------------------------------
+   The application markup was authored for a dark theme (slate-950 surfaces,
+   light text). Rather than rewrite thousands of class names, we re-map the
+   design tokens here so the WHOLE app flips to a clean ConEdison light theme:
+
+     • Neutral (slate/gray) ramp is INVERTED  → light surfaces, dark text
+     • Status text shades (-300/-400) DARKENED → readable on white
+     • Amber/Orange accent ramp RE-MAPPED      → ConEdison blue branding
+     • Translucent fills (bg-x-950/30) become soft tints over white
+
+   ConEdison blue: #0078C1 (primary) · #0061A8 (deep) · #E6F2FB (wash)
+   ========================================================================== */
+
+@theme {
+    /* ---- Typography (native stack, works offline / in blackout) ------------ */
+    --font-sans:
+        ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono:
+        ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", "Fira Code",
+        Menlo, Consolas, monospace;
+
+    /* ====================================================================== */
+    /* NEUTRAL RAMP — inverted for a light UI (surfaces, text, borders)       */
+    /* 950 = page wash · 900 = white cards · low numbers = dark text          */
+    /* ====================================================================== */
+    --color-slate-50: #020617;
+    --color-slate-100: #0f172a; /* primary text */
+    --color-slate-200: #1e293b;
+    --color-slate-205: #243044;
+    --color-slate-250: #2a3849;
+    --color-slate-300: #334155;
+    --color-slate-350: #3e4c5e;
+    --color-slate-400: #475569; /* secondary text — readable on white */
+    --color-slate-500: #4b5568; /* muted text — WCAG AA ≈4.4:1 on white */
+    --color-slate-600: #64748b;
+    --color-slate-650: #9aa7b8;
+    --color-slate-700: #cbd5e1; /* strong borders */
+    --color-slate-705: #cbd5e1;
+    --color-slate-750: #dbe2ea;
+    --color-slate-755: #dbe2ea;
+    --color-slate-800: #e2e8f0; /* borders / nested fills */
+    --color-slate-805: #e2e8f0;
+    --color-slate-850: #f1f5f9; /* subtle nested surface */
+    --color-slate-900: #ffffff; /* CARDS — white */
+    --color-slate-905: #ffffff;
+    --color-slate-950: #eef2f7; /* PAGE wash — soft blue-gray */
+
+    /* GRAY ramp (used by the occupant phone) — same inversion ---------------- */
+    --color-gray-50: #030712;
+    --color-gray-100: #111827;
+    --color-gray-200: #1f2937;
+    --color-gray-300: #374151;
+    --color-gray-400: #4b5563;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #9aa3af;
+    --color-gray-700: #d1d5db;
+    --color-gray-800: #e5e7eb;
+    --color-gray-850: #f3f4f6;
+    --color-gray-900: #ffffff;
+    --color-gray-950: #f3f4f6;
+
+    /* ====================================================================== */
+    /* BRAND ACCENT — amber & orange RE-MAPPED to ConEdison blue              */
+    /* Monotonic (50 light → 950 deep). Solid 500/600 = ConEd blue.           */
+    /* ====================================================================== */
+    --color-amber-50: #eff7fc;
+    --color-amber-100: #d6ebf8;
+    --color-amber-200: #aed7f1;
+    --color-amber-300: #6fb6e3;
+    --color-amber-400: #2a93d2;
+    --color-amber-500: #0078c1; /* ConEd primary accent */
+    --color-amber-600: #0061a8; /* solid buttons */
+    --color-amber-700: #00518c;
+    --color-amber-800: #064273;
+    --color-amber-900: #0a3a63;
+    --color-amber-950: #08263f;
+
+    --color-orange-50: #eff7fc;
+    --color-orange-100: #d6ebf8;
+    --color-orange-200: #aed7f1;
+    --color-orange-300: #6fb6e3;
+    --color-orange-400: #2a93d2;
+    --color-orange-500: #0078c1;
+    --color-orange-600: #0061a8;
+    --color-orange-700: #00518c;
+    --color-orange-800: #064273;
+    --color-orange-900: #0a3a63;
+    --color-orange-950: #08263f;
+
+    /* ====================================================================== */
+    /* STATUS COLORS — keep solid 500/600 (buttons), DARKEN 300/400 (text)    */
+    /* so labels stay legible on white. Translucent -950 fills become tints.  */
+    /* ====================================================================== */
+
+    /* RED — critical / SOS */
+    --color-red-300: #ef4444;
+    --color-red-400: #dc2626; /* was light; now readable on white */
+
+    /* EMERALD — safe / accounted */
+    --color-emerald-300: #10b981;
+    --color-emerald-400: #059669;
+
+    /* GREEN */
+    --color-green-300: #22c55e;
+    --color-green-400: #16a34a;
+
+    /* YELLOW — blackout / caution (needs to be quite dark on white) */
+    --color-yellow-300: #ca8a04;
+    --color-yellow-400: #a16207;
+
+    /* BLUE — drill mode / shelter / info */
+    --color-blue-300: #3b82f6;
+    --color-blue-400: #2563eb;
+
+    /* INDIGO — compliance badges */
+    --color-indigo-300: #6366f1;
+    --color-indigo-400: #4f46e5;
+
+    /* SKY / TEAL / CYAN — occasional accents */
+    --color-sky-300: #0ea5e9;
+    --color-sky-400: #0284c7;
+    --color-cyan-300: #06b6d4;
+    --color-cyan-400: #0891b2;
+}
+
+/* ---------------------------------------------------------------------------
+   Base rendering
+   --------------------------------------------------------------------------- */
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+    background-color: #eef2f7; /* light page wash — no dark flash */
+}
+
+body {
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+    color: #0f172a; /* slate-900 ink */
+}
+
+h1,
+h2,
+h3,
+h4 {
+    letter-spacing: -0.02em;
+}
+
+.font-mono,
+code,
+pre {
+    letter-spacing: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Accessible focus — keyboard navigation for ALL users (ARA requirement)
+   --------------------------------------------------------------------------- */
+:focus-visible {
+    outline: 2px solid #0078c1; /* ConEd blue */
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+button,
+[role="button"],
+a,
+input,
+select,
+textarea,
+label {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars — hidden where panels opt out, refined where they show
+   --------------------------------------------------------------------------- */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* light slate */
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+    background-clip: content-box;
+}
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Custom utilities the components depend on
+   --------------------------------------------------------------------------- */
+.grid-cols-16 {
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+}
+
+@keyframes mc-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.animate-fadeIn {
+    animation: mc-fade-in 0.25s ease-out both;
+}
+
+/* ---------------------------------------------------------------------------
+   Text selection — ConEd blue
+   --------------------------------------------------------------------------- */
+::selection {
+    background: #0078c1;
+    color: #ffffff;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion safety — vestibular / cognitive accessibility (ARA)
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Print — clean FDNY / LL26 report output
+   --------------------------------------------------------------------------- */
+@media print {
+    body {
+        background: #ffffff;
+        color: #000000;
+    }
+    .no-print {
+        display: none !important;
+    }
+}

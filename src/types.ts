@@ -2,11 +2,18 @@ export interface Occupant {
   id: string; // Token (e.g. usr_a7f8c9d1)
   badgeId: string; // e.g. FE019283
   nameEncrypted: string; // e.g. "************" (Tokenization-at-Rest placeholder)
-  role: "Warden" | "Occupant" | "Contractor" | "FSD" | "Visitor";
+  role:
+    | "Warden"
+    | "Occupant"
+    | "Contractor"
+    | "FSD"
+    | "Visitor"
+    | "Searcher"
+    | "Deputy";
   status: "SAFE" | "MISSING" | "NEED_HELP" | "CRITICAL";
   quadrant: "NW" | "NE" | "SW" | "SE" | "Center";
   staircase?: "Stair A" | "Stair B";
-  musterZone?: "Zone A" | "Zone B" | "Zone C";
+  musterZone?: "Zone A" | "Zone B";
   lastSeen: string;
   alertNote?: string;
   fallDetected?: boolean;
@@ -38,4 +45,33 @@ export interface DrillHistoryItem {
   unaccountedCount: number;
   complianceRate: number; // percentage
   narrative: string;
+}
+
+// ============================================================================
+// EAP — Emergency Action Plan types
+// Per ConEdison Floor 7 EAP & FDNY F-89 protocol.
+// ============================================================================
+export type EAPEmergencyType =
+  | "Fire/Smoke"
+  | "Explosion"
+  | "Medical"
+  | "Biological"
+  | "Chemical Release"
+  | "Radiological"
+  | "Nuclear"
+  | "Natural Disaster"
+  | "Active Shooter"
+  | "Bomb Threat"
+  | "Suspicious Package"
+  | "Other";
+
+export type EvacDecision =
+  | "EVACUATE"
+  | "SHELTER_IN_PLACE"
+  | "IN_BUILDING_RELOCATION";
+
+export interface ElevatorRecall {
+  bank: "A-Bank" | "G-Bank";
+  carNumber: number;
+  status: "RECALLED_LOBBY" | "AUTHORIZED" | "OUT_OF_SERVICE";
 }
