@@ -422,5 +422,39 @@ export const ELEVATOR_RECALL = [
 // Floor 7 sweep quadrants — warden sweep coverage target ≥ 98%
 export const SWEEP_QUADRANTS = ["NW", "NE", "SW", "SE", "Center"] as const;
 
+// Floor 7 As-Built egress stairs (Jan 14 2026 sheet). The 7th floor has SIX
+// stairs — A, C, D, E, F, G (there is no Stair B on this floor; the B core
+// is elevators/shafts only). x/y are calibrated to floor7-plan.png inside
+// the Command Deck map's 740×500 viewBox.
+export const STAIRS = [
+  { id: "A", label: "Stair A", area: "West · Irving Pl side", x: 175, y: 214 },
+  {
+    id: "C",
+    label: "Stair C",
+    area: "South core · Elev Lobby C",
+    x: 338,
+    y: 262,
+  },
+  {
+    id: "D",
+    label: "Stair D",
+    area: "Southeast · Elev Lobby D",
+    x: 549,
+    y: 264,
+  },
+  {
+    id: "E",
+    label: "Stair E",
+    area: "Northwest · Elev Lobby E",
+    x: 211,
+    y: 117,
+  },
+  { id: "F", label: "Stair F", area: "North core · Lobby C/F", x: 330, y: 156 },
+  { id: "G", label: "Stair G", area: "East · Elev Lobby G", x: 508, y: 176 },
+] as const;
+
+// Reroute preference when a stair is blocked (primary route first)
+export const STAIR_REROUTE_PRIORITY = ["A", "C", "F", "E", "G", "D"] as const;
+
 // FDNY / NYC LL26 record retention requirement
 export const RECORD_RETENTION_YEARS = 10;

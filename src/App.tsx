@@ -35,7 +35,8 @@ export default function App() {
 
   // Incident Master Operations
   const [isBlackout, setIsBlackout] = useState(false);
-  const [stairBBlocked, setStairBBlocked] = useState(false);
+  // Any of the six Floor-7 stairs (A/C/D/E/F/G) can be marked blocked by the FSD
+  const [blockedStairs, setBlockedStairs] = useState<string[]>([]);
   const [isLedgerTampered, setIsLedgerTampered] = useState(false);
 
   // NYC F-89 Emergency Broadcast Directive State
@@ -336,7 +337,7 @@ export default function App() {
     setOccupants(INITIAL_OCCUPANTS);
     setLedger(SEED_LEDGER);
     setMeshQueue([]);
-    setStairBBlocked(false);
+    setBlockedStairs([]);
     setIsLedgerTampered(false);
     setActiveDirective(
       "Phase 1 Evacuation — NE office fire detected. All Floor 7 occupants gather at corridor; FSD-assigned stairs only. PRIMARY muster: Stuyvesant Square Park. NW & SE wardens sweep stairwell landings; SW occupants reroute via Stair A.",
@@ -531,7 +532,7 @@ export default function App() {
                 occupant={occupants[2]} // Alice Smith
                 isBlackout={isBlackout}
                 onUpdateStatus={updateOccupantStatus}
-                stairBBlocked={stairBBlocked}
+                blockedStairs={blockedStairs}
                 activeDirective={activeDirective}
               />
             </section>
@@ -631,13 +632,18 @@ export default function App() {
                 isBlackout={isBlackout}
                 onClearIncident={clearIncident}
                 onLogEvent={logEvent}
-                stairBBlocked={stairBBlocked}
-                onToggleStairB={() => {
-                  setStairBBlocked(!stairBBlocked);
+                blockedStairs={blockedStairs}
+                onToggleStair={(stairId) => {
+                  const isBlocked = blockedStairs.includes(stairId);
+                  setBlockedStairs((prev) =>
+                    isBlocked
+                      ? prev.filter((s) => s !== stairId)
+                      : [...prev, stairId],
+                  );
                   logEvent(
-                    stairBBlocked
-                      ? "Stair B blockage cleared. Wardens reporting free passage."
-                      : "Stair B blockage logged near NW landing! Bluetooth rerouting plan dispatched.",
+                    isBlocked
+                      ? `Stair ${stairId} blockage CLEARED. Wardens report free passage.`
+                      : `Stair ${stairId} marked BLOCKED. Reroute alerts dispatched to all units over mesh.`,
                   );
                 }}
                 onTamperLedger={tamperLedgerChain}

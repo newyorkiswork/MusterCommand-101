@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { Occupant } from "../types";
+import { STAIRS, STAIR_REROUTE_PRIORITY } from "../data";
 import { sanitizeText, validateBadgeSyntax } from "../utils";
 
 // Schema for input evaluation complying with Level 1 validation
@@ -41,7 +42,7 @@ interface OccupantMobileProps {
     note?: string,
     fallDetected?: boolean,
   ) => void;
-  stairBBlocked: boolean;
+  blockedStairs: string[];
   activeDirective: string;
 }
 
@@ -143,9 +144,16 @@ export default function OccupantMobile({
   occupant,
   isBlackout,
   onUpdateStatus,
-  stairBBlocked,
+  blockedStairs,
   activeDirective,
 }: OccupantMobileProps) {
+  // Best clear stair for this occupant (primary route first). Floor 7 has
+  // six egress stairs — A/C/D/E/F/G — and the FSD can block any of them.
+  const recommendedStairId =
+    STAIR_REROUTE_PRIORITY.find((s) => !blockedStairs.includes(s)) ?? "A";
+  const recommendedStair =
+    STAIRS.find((s) => s.id === recommendedStairId) ?? STAIRS[0];
+  const blockedList = blockedStairs.map((id) => `Stair ${id}`).join(", ");
   const [activeScreen, setActiveScreen] = useState<"PROTOCOL" | "QR_PASS">(
     "PROTOCOL",
   );
@@ -308,11 +316,12 @@ export default function OccupantMobile({
           <p className="text-sm font-semibold text-slate-200 leading-snug">
             {activeDirective}
           </p>
-          {stairBBlocked && (
+          {blockedStairs.length > 0 && (
             <div className="mt-2 flex items-center gap-2 bg-yellow-100 border border-yellow-400 rounded-lg px-3 py-2">
               <AlertTriangle size={14} className="text-yellow-700 shrink-0" />
               <span className="text-xs font-bold text-yellow-900">
-                STAIR B BLOCKED — Use Stair A (North) only
+                {blockedList.toUpperCase()} BLOCKED — Use{" "}
+                {recommendedStair.label} ({recommendedStair.area})
               </span>
             </div>
           )}
@@ -429,14 +438,14 @@ export default function OccupantMobile({
               </div>
 
               {/* Stair blocked warning */}
-              {stairBBlocked && (
+              {blockedStairs.length > 0 && (
                 <div className="mb-3 bg-yellow-100 border-2 border-yellow-500 rounded-xl px-3 py-2.5 flex items-center gap-2">
                   <AlertTriangle
                     size={16}
                     className="text-yellow-700 shrink-0"
                   />
                   <p className="text-xs font-black text-yellow-900 uppercase tracking-wide">
-                    Stair B BLOCKED — Use Stair A (North) only
+                    {blockedList} BLOCKED — Use {recommendedStair.label} only
                   </p>
                 </div>
               )}
@@ -453,9 +462,9 @@ export default function OccupantMobile({
                       A · Exit the Floor
                     </div>
                     <div className="text-sm font-black text-emerald-900">
-                      {stairBBlocked
-                        ? "Stair A (North) — ONLY ROUTE"
-                        : "Stair A (North) • 7th Fl Corridor"}
+                      {blockedStairs.length > 0
+                        ? `${recommendedStair.label} (${recommendedStair.area}) — ONLY ROUTE`
+                        : `${recommendedStair.label} (${recommendedStair.area})`}
                     </div>
                     <div className="text-xs text-emerald-700 mt-0.5">
                       Do NOT use elevators. Stairs only.
@@ -1007,7 +1016,7 @@ export default function OccupantMobile({
                 </div>
                 <img
                   src="/floor7-plan.png"
-                  alt="7th floor As-Built plan showing all office suites, elevator lobbies C/D/E/G, stairs A/B/C/D"
+                  alt="7th floor As-Built plan showing all office suites, elevator lobbies C/D/E/G, stairs A/C/D/E/F/G"
                   className="w-full h-auto rounded-xl border-2 border-slate-200"
                 />
               </div>

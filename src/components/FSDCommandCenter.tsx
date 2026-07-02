@@ -35,7 +35,12 @@ import {
   EvacDecision,
 } from "../types";
 import { PILOT_GOALS, PilotGoalContext, FLOOR7_CENSUS } from "../pilotGoals";
-import { EAP_EMERGENCY_TYPES, EAP_DECISIONS, ELEVATOR_RECALL } from "../data";
+import {
+  EAP_EMERGENCY_TYPES,
+  EAP_DECISIONS,
+  ELEVATOR_RECALL,
+  STAIRS,
+} from "../data";
 import { saveRecord, recordCounts } from "../recordStore";
 
 interface FSDCommandCenterProps {
@@ -44,8 +49,8 @@ interface FSDCommandCenterProps {
   isBlackout: boolean;
   onClearIncident: () => void;
   onLogEvent: (event: string) => void;
-  stairBBlocked: boolean;
-  onToggleStairB: () => void;
+  blockedStairs: string[];
+  onToggleStair: (stairId: string) => void;
   onTamperLedger: () => void;
   onResetLedger: () => void;
   isLedgerTampered: boolean;
@@ -61,8 +66,8 @@ export default function FSDCommandCenter({
   isBlackout,
   onClearIncident,
   onLogEvent,
-  stairBBlocked,
-  onToggleStairB,
+  blockedStairs,
+  onToggleStair,
   onTamperLedger,
   onResetLedger,
   isLedgerTampered,
@@ -187,6 +192,11 @@ export default function FSDCommandCenter({
   // Drill vs. real-incident mode. Gates family-notification SMS and keeps
   // drill records quarantined from any real FDNY submission.
   const [isDrill, setIsDrill] = useState(true);
+
+  // Every broadcast is explicitly tagged with the active mode so occupants
+  // and wardens always know whether a command is a DRILL or a REAL order.
+  const deployDirective = (txt: string) =>
+    onDispatchDirective(isDrill ? `🟦 DRILL — ${txt}` : `🔴 REAL — ${txt}`);
 
   // ─── EAP Emergency Declaration state ───────────────────────────────────
   const [selectedEmergency, setSelectedEmergency] =
@@ -471,16 +481,6 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
             Reset Timer
           </button>
           <button
-            onClick={onToggleStairB}
-            className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
-              stairBBlocked
-                ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-                : "bg-slate-850 text-slate-300 border-slate-300 hover:bg-slate-800"
-            }`}
-          >
-            {stairBBlocked ? "⚠️ Stair B BLOCKED" : "Block Stair B"}
-          </button>
-          <button
             onClick={() => {
               if (
                 confirm(
@@ -648,8 +648,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 EAP Emergency Declaration
               </span>
               <p className="text-xs text-slate-600 font-mono mt-1">
-                Classify the incident → choose LSD decision → directive
-                auto-broadcasts
+                1 Classify → 2 Decide → command deploys to every phone & tablet
               </p>
             </div>
             <div className="shrink-0 text-right">
@@ -669,6 +668,34 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 {EAP_DECISIONS.find((d) => d.id === evacDecision)?.label}
               </div>
             </div>
+          </div>
+
+          {/* Mode banner — says exactly how the next command will deploy */}
+          <div
+            className={`flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 ${
+              isDrill
+                ? "bg-blue-50 border-blue-300"
+                : "bg-red-50 border-red-400"
+            }`}
+          >
+            <span
+              className={`text-sm font-black uppercase tracking-wide ${
+                isDrill ? "text-blue-700" : "text-red-700"
+              }`}
+            >
+              {isDrill
+                ? "🟦 Commands deploy as DRILL"
+                : "🔴 Commands deploy as REAL EVACUATION"}
+            </span>
+            <span
+              className={`text-xs font-semibold ${
+                isDrill ? "text-blue-600" : "text-red-600"
+              }`}
+            >
+              {isDrill
+                ? "Tagged “DRILL” on every device · family SMS off"
+                : "No drill tag · family SAFE-SMS armed"}
+            </span>
           </div>
 
           {/* ── EAP flow stepper — progress + live broadcast state ── */}
@@ -775,7 +802,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
           {/* Step 2 — Decision branches (full-width stacked rows) */}
           <div className="space-y-2 pt-3 border-t border-slate-200">
             <span className="text-xs font-bold font-mono uppercase text-slate-600 tracking-wider block">
-              Step 2 — LSD / FSD Decision
+              Step 2 — Decide &amp; Deploy Command
             </span>
             <div className="flex flex-col gap-2">
               {EAP_DECISIONS.map((d) => {
@@ -810,15 +837,15 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                       setBroadcastState("broadcasting");
                       window.setTimeout(() => setBroadcastState("sent"), 900);
                       if (d.id === "EVACUATE") {
-                        onDispatchDirective(
-                          `EAP — ${selectedEmergency}: EVACUATE Floor 7. Gather at corridor; FSD-assigned stairs only. PRIMARY muster: Stuyvesant Square Park.`,
+                        deployDirective(
+                          `EAP — ${selectedEmergency}: EVACUATE Floor 7. Use FSD-assigned stairs only. PRIMARY muster: Stuyvesant Square Park.`,
                         );
                       } else if (d.id === "SHELTER_IN_PLACE") {
-                        onDispatchDirective(
+                        deployDirective(
                           `EAP — ${selectedEmergency}: SHELTER IN PLACE. Remain in current secure area. Await FSD all-clear.`,
                         );
                       } else {
-                        onDispatchDirective(
+                        deployDirective(
                           `EAP — ${selectedEmergency}: IN-BUILDING RELOCATION. Move to FSD-designated safe floor/zone.`,
                         );
                       }
@@ -1006,8 +1033,8 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                     text: "Phase 2 Evacuation: Whole pilot floor evacuation declared. Proceed to designated safety exits.",
                   },
                   {
-                    title: "Stair B Blocked",
-                    text: "Emergency Alert: Stair B reported congested or blocked. All floor components divert to northwest Stair A.",
+                    title: "Stair Blocked — Reroute",
+                    text: "Emergency Alert: A stairwell is reported blocked. Divert to the nearest CLEAR stair on the Stair Control board; wardens confirm landings.",
                   },
                   {
                     title: "BLE Mesh Routing",
@@ -1016,7 +1043,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 ].map((preset, idx) => (
                   <button
                     key={idx}
-                    onClick={() => onDispatchDirective(preset.text)}
+                    onClick={() => deployDirective(preset.text)}
                     className="w-full text-left bg-white hover:bg-white border border-slate-300 hover:border-amber-600 px-3 py-3 rounded-xl text-sm font-semibold text-slate-300 hover:text-slate-100 transition-all cursor-pointer flex items-start gap-2"
                     title={preset.text}
                   >
@@ -1035,7 +1062,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                   const fd = new FormData(e.currentTarget);
                   const txt = fd.get("custom_directive") as string;
                   if (txt && txt.trim()) {
-                    onDispatchDirective(txt.trim());
+                    deployDirective(txt.trim());
                     e.currentTarget.reset();
                   }
                 }}
@@ -1076,6 +1103,57 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
               <span className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-300 px-2.5 py-1 rounded-lg font-bold">
                 NYC LL26
               </span>
+            </div>
+          </div>
+
+          {/* STAIR CONTROL — tap any of the six real Floor-7 stairs to mark it
+              blocked/clear. Drives map markers + occupant reroute warnings. */}
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-bold font-mono uppercase text-slate-600 tracking-wider">
+                Stair Control — tap to block / clear
+              </span>
+              <span
+                className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${
+                  blockedStairs.length > 0
+                    ? "bg-red-100 text-red-700 border-red-300"
+                    : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                }`}
+              >
+                {blockedStairs.length > 0
+                  ? `${blockedStairs.length} BLOCKED`
+                  : "ALL CLEAR"}
+              </span>
+            </div>
+            <div className="grid grid-cols-6 gap-1.5">
+              {STAIRS.map((s) => {
+                const blocked = blockedStairs.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onToggleStair(s.id)}
+                    title={`${s.label} · ${s.area} — tap to mark ${blocked ? "CLEAR" : "BLOCKED"}`}
+                    aria-pressed={blocked}
+                    className={`py-2 rounded-xl border-2 text-center transition-all cursor-pointer active:scale-95 ${
+                      blocked
+                        ? "bg-red-600 border-red-500 text-white shadow-md"
+                        : "bg-emerald-50 border-emerald-300 text-emerald-700 hover:border-emerald-500"
+                    }`}
+                  >
+                    <span className="block text-sm font-black leading-none">
+                      {s.id}
+                    </span>
+                    <span
+                      className={`block text-xs font-bold mt-1 leading-none ${
+                        blocked ? "text-red-100" : "text-emerald-600"
+                      }`}
+                    >
+                      {blocked ? "BLOCKED" : "CLEAR"}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1158,1149 +1236,17 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                   <path
                     d="M 20 0 L 0 0 0 20"
                     fill="none"
-                    stroke="#0e1726"
+                    stroke="#dbe4ee"
                     strokeWidth="1"
                   />
                 </pattern>
-
-                {/* Radial Gradients for Division overlays */}
-                <radialGradient id="grad-nw" cx="25%" cy="25%" r="40%">
-                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.10" />
-                  <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
-                </radialGradient>
-                <radialGradient id="grad-ne" cx="75%" cy="25%" r="40%">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.12" />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
-                </radialGradient>
-                <radialGradient id="grad-sw" cx="25%" cy="75%" r="40%">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.08" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-                </radialGradient>
-                <radialGradient id="grad-se" cx="75%" cy="75%" r="40%">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.08" />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
-                </radialGradient>
               </defs>
 
               {/* Apply technical grid background */}
               <rect width="100%" height="100%" fill="url(#arch-grid)" />
 
-              {/* STREET REPR - North (E 15th St) */}
-              <rect
-                x="60"
-                y="5"
-                width="620"
-                height="25"
-                fill="#090d16"
-                rx="4"
-                stroke="#1e293b"
-                strokeWidth="1"
-              />
-              <text
-                x="370"
-                y="21"
-                fill="#475569"
-                fontSize="9"
-                fontFamily="monospace"
-                fontWeight="bold"
-                textAnchor="middle"
-                letterSpacing="2"
-              >
-                ▲ EAST 15TH STREET ▲
-              </text>
-
-              {/* STREET REPR - South (E 14th St) */}
-              <rect
-                x="60"
-                y="470"
-                width="620"
-                height="25"
-                fill="#090d16"
-                rx="4"
-                stroke="#1e293b"
-                strokeWidth="1"
-              />
-              <text
-                x="370"
-                y="486"
-                fill="#475569"
-                fontSize="9"
-                fontFamily="monospace"
-                fontWeight="bold"
-                textAnchor="middle"
-                letterSpacing="2"
-              >
-                ▼ EAST 14TH STREET ▼
-              </text>
-
-              {/* STREET REPR - West (Irving Place) */}
-              <rect
-                x="5"
-                y="55"
-                width="25"
-                height="385"
-                fill="#090d16"
-                rx="4"
-                stroke="#1e293b"
-                strokeWidth="1"
-              />
-              <text
-                x="18"
-                y="248"
-                fill="#475569"
-                fontSize="9"
-                fontFamily="monospace"
-                fontWeight="bold"
-                textAnchor="middle"
-                letterSpacing="2"
-                transform="rotate(-90, 18, 248)"
-              >
-                ◀ IRVING PLACE ◀
-              </text>
-
-              {/* STREET REPR - East (Third Avenue) */}
-              <rect
-                x="710"
-                y="55"
-                width="25"
-                height="385"
-                fill="#090d16"
-                rx="4"
-                stroke="#1e293b"
-                strokeWidth="1"
-              />
-              <text
-                x="723"
-                y="248"
-                fill="#475569"
-                fontSize="9"
-                fontFamily="monospace"
-                fontWeight="bold"
-                textAnchor="middle"
-                letterSpacing="2"
-                transform="rotate(90, 723, 248)"
-              >
-                ▶ THIRD AVENUE ▶
-              </text>
-
-              {/* Outer Architectural Wall Boundary - Floor 7 Pilot, 4 Irving Plaza */}
-              <rect
-                x="60"
-                y="55"
-                width="620"
-                height="385"
-                rx="14"
-                fill="#0a0e19"
-                fillOpacity="0.85"
-                stroke="#334155"
-                strokeWidth="3"
-              />
-
-              {/* Zone / Division Aesthetic Background Overlays */}
-              {/* NW Zone */}
-              <rect
-                x="62"
-                y="57"
-                width="308"
-                height="193"
-                fill="url(#grad-nw)"
-                rx="10"
-              />
-              {/* NE Zone */}
-              <rect
-                x="370"
-                y="57"
-                width="308"
-                height="193"
-                fill="url(#grad-ne)"
-                rx="10"
-              />
-              {/* SW Zone */}
-              <rect
-                x="62"
-                y="250"
-                width="308"
-                height="188"
-                fill="url(#grad-sw)"
-                rx="10"
-              />
-              {/* SE Zone */}
-              <rect
-                x="370"
-                y="250"
-                width="308"
-                height="188"
-                fill="url(#grad-se)"
-                rx="10"
-              />
-
-              {/* Quadrant Demarcation Guidelines */}
-              <line
-                x1="370"
-                y1="55"
-                x2="370"
-                y2="440"
-                stroke="#1e293b"
-                strokeWidth="1.5"
-                strokeDasharray="5 5"
-              />
-              <line
-                x1="60"
-                y1="250"
-                x2="680"
-                y2="250"
-                stroke="#1e293b"
-                strokeWidth="1.5"
-                strokeDasharray="5 5"
-              />
-
-              {/* TWO CENTRAL COURTYARDS (Double Donut Architecture) */}
-              {/* Left Courtyard */}
-              <g className="opacity-95">
-                <rect
-                  x="180"
-                  y="155"
-                  width="120"
-                  height="120"
-                  rx="8"
-                  fill="#0f172a"
-                  stroke="#1e293b"
-                  strokeWidth="1.5"
-                />
-                <rect
-                  x="190"
-                  y="165"
-                  width="100"
-                  height="100"
-                  rx="4"
-                  fill="none"
-                  stroke="#2a3d5e"
-                  strokeWidth="0.8"
-                  strokeDasharray="2 2"
-                />
-                {/* Visual Tree Glyphs */}
-                <circle
-                  cx="210"
-                  cy="195"
-                  r="7"
-                  fill="#13281e"
-                  stroke="#10b981"
-                  strokeWidth="1"
-                />
-                <circle
-                  cx="270"
-                  cy="235"
-                  r="7"
-                  fill="#13281e"
-                  stroke="#10b981"
-                  strokeWidth="1"
-                />
-                <text
-                  x="240"
-                  y="218"
-                  fill="#3b4d66"
-                  fontSize="7.5"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  COURTYARD A (W)
-                </text>
-              </g>
-
-              {/* Right Courtyard */}
-              <g className="opacity-95">
-                <rect
-                  x="440"
-                  y="155"
-                  width="120"
-                  height="120"
-                  rx="8"
-                  fill="#0f172a"
-                  stroke="#1e293b"
-                  strokeWidth="1.5"
-                />
-                <rect
-                  x="450"
-                  y="165"
-                  width="100"
-                  height="100"
-                  rx="4"
-                  fill="none"
-                  stroke="#2a3d5e"
-                  strokeWidth="0.8"
-                  strokeDasharray="2 2"
-                />
-                <circle
-                  cx="470"
-                  cy="235"
-                  r="7"
-                  fill="#13281e"
-                  stroke="#10b981"
-                  strokeWidth="1"
-                />
-                <circle
-                  cx="530"
-                  cy="195"
-                  r="7"
-                  fill="#13281e"
-                  stroke="#10b981"
-                  strokeWidth="1"
-                />
-                <text
-                  x="500"
-                  y="218"
-                  fill="#3b4d66"
-                  fontSize="7.5"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  COURTYARD B (E)
-                </text>
-              </g>
-
-              {/* ELEVATOR LOBBIES & elevator cars */}
-              {/* Elev Lobby C (Center Corridor) */}
-              <g
-                onClick={() =>
-                  onLogEvent(
-                    "FSD Command checked Elevator Lobby C status: Cars recall locked at Lobby 1.",
-                  )
-                }
-                className="cursor-pointer group"
-              >
-                <rect
-                  x="325"
-                  y="185"
-                  width="90"
-                  height="60"
-                  rx="6"
-                  fill="#030712"
-                  stroke="#1d4ed8"
-                  strokeWidth="1.2"
-                />
-                <text
-                  x="370"
-                  y="200"
-                  fill="#60a5fa"
-                  fontSize="7"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  ELEV LOBBY C
-                </text>
-                {/* Tiny Elevator Cars */}
-                <rect
-                  x="335"
-                  y="210"
-                  width="12"
-                  height="14"
-                  rx="1.5"
-                  fill="#1e293b"
-                  stroke="#3b82f6"
-                  strokeWidth="0.8"
-                />
-                <rect
-                  x="351"
-                  y="210"
-                  width="12"
-                  height="14"
-                  rx="1.5"
-                  fill="#1e293b"
-                  stroke="#3b82f6"
-                  strokeWidth="0.8"
-                />
-                <rect
-                  x="377"
-                  y="210"
-                  width="12"
-                  height="14"
-                  rx="1.5"
-                  fill="#1e293b"
-                  stroke="#3b82f6"
-                  strokeWidth="0.8"
-                />
-                <rect
-                  x="393"
-                  y="210"
-                  width="12"
-                  height="14"
-                  rx="1.5"
-                  fill="#1e293b"
-                  stroke="#3b82f6"
-                  strokeWidth="0.8"
-                />
-                <text
-                  x="370"
-                  y="235"
-                  fill="#3b82f6"
-                  fontSize="5.5"
-                  fontFamily="monospace"
-                  textAnchor="middle"
-                >
-                  PHASE I RECALLED
-                </text>
-              </g>
-
-              {/* Elev Lobby D */}
-              <g
-                onClick={() =>
-                  onLogEvent(
-                    "FSD Command checked Elevator Lobby D structure: Isolation doors closed.",
-                  )
-                }
-                className="cursor-pointer"
-              >
-                <rect
-                  x="575"
-                  y="185"
-                  width="45"
-                  height="40"
-                  rx="4"
-                  fill="#030712"
-                  stroke="#1d4ed8"
-                  strokeWidth="1"
-                />
-                <text
-                  x="597"
-                  y="196"
-                  fill="#60a5fa"
-                  fontSize="6.5"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  ELEV D
-                </text>
-                <rect
-                  x="581"
-                  y="205"
-                  width="14"
-                  height="12"
-                  rx="1"
-                  fill="#111827"
-                  stroke="#3b82f6"
-                  strokeWidth="0.6"
-                />
-                <rect
-                  x="599"
-                  y="205"
-                  width="14"
-                  height="12"
-                  rx="1"
-                  fill="#111827"
-                  stroke="#3b82f6"
-                  strokeWidth="0.6"
-                />
-              </g>
-
-              {/* Elev Lobby E */}
-              <g
-                onClick={() =>
-                  onLogEvent(
-                    "FSD Command logged Elev Lobby E air handlers checked.",
-                  )
-                }
-                className="cursor-pointer"
-              >
-                <rect
-                  x="120"
-                  y="65"
-                  width="55"
-                  height="35"
-                  rx="4"
-                  fill="#030712"
-                  stroke="#1d4ed8"
-                  strokeWidth="1"
-                />
-                <text
-                  x="147"
-                  y="76"
-                  fill="#60a5fa"
-                  fontSize="6.5"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  ELEV E
-                </text>
-                <rect
-                  x="126"
-                  y="83"
-                  width="12"
-                  height="12"
-                  rx="1"
-                  fill="#111827"
-                  stroke="#3b82f6"
-                  strokeWidth="0.6"
-                />
-                <rect
-                  x="142"
-                  y="83"
-                  width="12"
-                  height="12"
-                  rx="1"
-                  fill="#111827"
-                  stroke="#3b82f6"
-                  strokeWidth="0.6"
-                />
-              </g>
-
-              {/* Elev Lobby G */}
-              <g
-                onClick={() =>
-                  onLogEvent(
-                    "FSD Command logged Elev Lobby G: Inactive corridor secured.",
-                  )
-                }
-                className="cursor-pointer"
-              >
-                <rect
-                  x="595"
-                  y="110"
-                  width="35"
-                  height="45"
-                  rx="4"
-                  fill="#030712"
-                  stroke="#1d4ed8"
-                  strokeWidth="1"
-                />
-                <text
-                  x="612"
-                  y="121"
-                  fill="#60a5fa"
-                  fontSize="6.5"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  ELEV G
-                </text>
-                <rect
-                  x="600"
-                  y="130"
-                  width="11"
-                  height="11"
-                  rx="1"
-                  fill="#111827"
-                  stroke="#3b82f6"
-                  strokeWidth="0.6"
-                />
-                <rect
-                  x="614"
-                  y="130"
-                  width="11"
-                  height="11"
-                  rx="1"
-                  fill="#111827"
-                  stroke="#3b82f6"
-                  strokeWidth="0.6"
-                />
-              </g>
-
-              {/* SECTORS / OPERATIONS LABELS */}
-              {/* NW: Strategic Planning & AMI Team */}
-              <g className="opacity-80">
-                <text
-                  x="110"
-                  y="125"
-                  fill="#22d3ee"
-                  fontSize="8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                >
-                  STRATEGIC PLANNING
-                </text>
-                <text
-                  x="110"
-                  y="135"
-                  fill="#0891b2"
-                  fontSize="7"
-                  fontFamily="sans-serif"
-                >
-                  Office Roster [NW] Floor 7
-                </text>
-                <text
-                  x="210"
-                  y="100"
-                  fill="#a5f3fc"
-                  fontSize="7.5"
-                  fontFamily="monospace"
-                >
-                  AMI DEV UNIT
-                </text>
-              </g>
-
-              {/* NE: Public Service Commission & Facilities */}
-              <g className="opacity-80">
-                <text
-                  x="510"
-                  y="130"
-                  fill="#818cf8"
-                  fontSize="8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  PUBLIC SERVICE COMM
-                </text>
-                <text
-                  x="510"
-                  y="140"
-                  fill="#4f46e5"
-                  fontSize="7"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  07-100 Service Offices [NE]
-                </text>
-                {/* Facilities Room */}
-                <rect
-                  x="445"
-                  y="80"
-                  width="110"
-                  height="40"
-                  rx="3"
-                  fill="#10172a"
-                  stroke="#4338ca"
-                  strokeWidth="0.8"
-                  strokeDasharray="3 2"
-                />
-                <text
-                  x="500"
-                  y="94"
-                  fill="#a5b4fc"
-                  fontSize="7"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  07-220 FACILITIES
-                </text>
-                <text
-                  x="500"
-                  y="104"
-                  fill="#6366f1"
-                  fontSize="6"
-                  fontFamily="monospace"
-                  textAnchor="middle"
-                >
-                  STAIR F ACCESS PORTAL
-                </text>
-              </g>
-
-              {/* SW: Operations Division & Seating */}
-              <g className="opacity-80">
-                <text
-                  x="110"
-                  y="325"
-                  fill="#34d399"
-                  fontSize="8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                >
-                  GAS OPERATIONS CENTRE
-                </text>
-                <text
-                  x="110"
-                  y="335"
-                  fill="#059669"
-                  fontSize="7"
-                  fontFamily="sans-serif"
-                >
-                  Muster Zone A Primary Dispatch
-                </text>
-              </g>
-
-              {/* SE: Corp Security & Steam Ops */}
-              <g className="opacity-85">
-                <text
-                  x="525"
-                  y="320"
-                  fill="#fbbf24"
-                  fontSize="8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  VP STEAM OPERATIONS
-                </text>
-                <text
-                  x="525"
-                  y="330"
-                  fill="#d97706"
-                  fontSize="7"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  Corp HQ Systems [SE]
-                </text>
-                {/* 07-500 Secure Archives */}
-                <rect
-                  x="475"
-                  y="345"
-                  width="100"
-                  height="35"
-                  rx="3"
-                  fill="#121824"
-                  stroke="#b45309"
-                  strokeWidth="0.8"
-                  strokeDasharray="3 2"
-                />
-                <text
-                  x="525"
-                  y="358"
-                  fill="#f59e0b"
-                  fontSize="6.5"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  07-500 FILE ROOM
-                </text>
-                <text
-                  x="525"
-                  y="368"
-                  fill="#92400e"
-                  fontSize="6.2"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  Authorized Sec Key Cards Only
-                </text>
-              </g>
-
-              {/* ARCHITECTURAL COMPASS / NORTH INDICATOR */}
-              <g className="opacity-90">
-                <circle
-                  cx="650"
-                  cy="115"
-                  r="16"
-                  fill="#0f172a"
-                  stroke="#475569"
-                  strokeWidth="1"
-                />
-                <line
-                  x1="650"
-                  y1="127"
-                  x2="650"
-                  y2="103"
-                  stroke="#94a3b8"
-                  strokeWidth="1"
-                />
-                <polygon points="650,99 646,108 654,108" fill="#ef4444" />
-                <text
-                  x="650"
-                  y="123"
-                  fill="#ffffff"
-                  fontSize="8.5"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  N
-                </text>
-                <text
-                  x="650"
-                  y="137"
-                  fill="#475569"
-                  fontSize="6.5"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  FL_7
-                </text>
-              </g>
-
-              {/* NE BREAKROOM FIRE HAZARD OVERLAY */}
-              <g
-                className="cursor-help"
-                onClick={() =>
-                  onLogEvent(
-                    "ALERT FEED: Active smoke sensor logged in NE Breakroom (Sector 07-220). Fire suppression engaged.",
-                  )
-                }
-              >
-                <circle
-                  cx="510"
-                  cy="85"
-                  r="28"
-                  fill="#7f1d1d"
-                  fillOpacity="0.25"
-                />
-                <circle
-                  cx="510"
-                  cy="85"
-                  r="16"
-                  fill="#ef4444"
-                  fillOpacity="0.6"
-                  className="animate-ping"
-                  style={{ animationDuration: "2s" }}
-                />
-                <path
-                  d="M510,73 L518,87 L502,87 Z"
-                  fill="#fef08a"
-                  stroke="#b91c1c"
-                  strokeWidth="1"
-                />
-                <text
-                  x="510"
-                  y="97"
-                  fill="#ef4444"
-                  fontSize="7"
-                  fontFamily="sans-serif"
-                  fontWeight="black"
-                  textAnchor="middle"
-                  className="tracking-wide"
-                >
-                  NE FLAME
-                </text>
-              </g>
-
-              {/* -------------------- ALL 7 CODE-COMPLIANT STAIRWELLS -------------------- */}
-
-              {/* Stair A - North West Corridor (Primary exit route for NW) */}
-              <g
-                onClick={() =>
-                  onLogEvent(
-                    "Tactical assessment of Stair A: checked and clear of smoke.",
-                  )
-                }
-                className="cursor-pointer group"
-              >
-                <rect
-                  x="70"
-                  y="195"
-                  width="55"
-                  height="35"
-                  rx="4"
-                  fill="#022c22"
-                  stroke="#059669"
-                  strokeWidth="1.5"
-                />
-                <line
-                  x1="70"
-                  y1="212"
-                  x2="125"
-                  y2="212"
-                  stroke="#10b981"
-                  strokeWidth="0.8"
-                  strokeDasharray="2 1"
-                />
-                <text
-                  x="97"
-                  y="210"
-                  fill="#34d399"
-                  fontSize="7.5"
-                  fontFamily="monospace"
-                  fontWeight="black"
-                  textAnchor="middle"
-                >
-                  STAIR A
-                </text>
-                <text
-                  x="97"
-                  y="222"
-                  fill="#a7f3d0"
-                  fontSize="5.5"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  CLEAR EXIT
-                </text>
-              </g>
-
-              {/* Stair B - South East Corner (Dynamic blockade indicator) */}
-              <g
-                onClick={onToggleStairB}
-                className="cursor-pointer transition-all"
-              >
-                <rect
-                  x="615"
-                  y="355"
-                  width="55"
-                  height="35"
-                  rx="4"
-                  fill={stairBBlocked ? "#450a0a" : "#022c22"}
-                  stroke={stairBBlocked ? "#ef4444" : "#059669"}
-                  strokeWidth="1.8"
-                />
-                <line
-                  x1="615"
-                  y1="372"
-                  x2="670"
-                  y2="372"
-                  stroke={stairBBlocked ? "#ef4444" : "#10b981"}
-                  strokeWidth="0.8"
-                  strokeDasharray="2 1"
-                />
-                <text
-                  x="642"
-                  y="370"
-                  fill={stairBBlocked ? "#fecaca" : "#34d399"}
-                  fontSize="7.5"
-                  fontFamily="monospace"
-                  fontWeight="black"
-                  textAnchor="middle"
-                >
-                  STAIR B
-                </text>
-                <text
-                  x="642"
-                  y="382"
-                  fill={stairBBlocked ? "#ef4444" : "#a7f3d0"}
-                  fontSize="5.5"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                  className={
-                    stairBBlocked ? "font-bold animate-pulse text-[6px]" : ""
-                  }
-                >
-                  {stairBBlocked ? "BLOCKED ⚠️" : "CLEAR EXIT"}
-                </text>
-              </g>
-
-              {/* Stair C - South Central core */}
-              <g
-                onClick={() =>
-                  onLogEvent(
-                    "Stair C (South Portal) audited by Floor Marshal: Currently safe.",
-                  )
-                }
-                className="cursor-pointer"
-              >
-                <rect
-                  x="345"
-                  y="395"
-                  width="50"
-                  height="30"
-                  rx="4"
-                  fill="#022c22"
-                  stroke="#059669"
-                  strokeWidth="1.2"
-                />
-                <text
-                  x="370"
-                  y="408"
-                  fill="#34d399"
-                  fontSize="7"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  STAIR C
-                </text>
-                <text
-                  x="370"
-                  y="418"
-                  fill="#a7f3d0"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  SECURE
-                </text>
-              </g>
-
-              {/* Stair D - Far East wing page boundary */}
-              <g
-                onClick={() =>
-                  onLogEvent("Stair D (East Wall Landing) verified secure.")
-                }
-                className="cursor-pointer"
-              >
-                <rect
-                  x="635"
-                  y="235"
-                  width="40"
-                  height="35"
-                  rx="4"
-                  fill="#022c22"
-                  stroke="#059669"
-                  strokeWidth="1.2"
-                />
-                <text
-                  x="655"
-                  y="247"
-                  fill="#34d399"
-                  fontSize="6.8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  STAIR D
-                </text>
-                <text
-                  x="655"
-                  y="258"
-                  fill="#a7f3d0"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  SECURE
-                </text>
-              </g>
-
-              {/* Stair E - Northwest corner core lobby */}
-              <g
-                onClick={() =>
-                  onLogEvent("Stair E (NW Lobby Portal) verified secure.")
-                }
-                className="cursor-pointer"
-              >
-                <rect
-                  x="195"
-                  y="65"
-                  width="45"
-                  height="30"
-                  rx="4"
-                  fill="#022c22"
-                  stroke="#059669"
-                  strokeWidth="1.2"
-                />
-                <text
-                  x="217"
-                  y="78"
-                  fill="#34d399"
-                  fontSize="6.8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  STAIR E
-                </text>
-                <text
-                  x="217"
-                  y="88"
-                  fill="#a7f3d0"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  SECURE
-                </text>
-              </g>
-
-              {/* Stair F - North Central Core corridor */}
-              <g
-                onClick={() =>
-                  onLogEvent(
-                    "Stair F (North Central Corridor) verified secure.",
-                  )
-                }
-                className="cursor-pointer"
-              >
-                <rect
-                  x="345"
-                  y="65"
-                  width="45"
-                  height="30"
-                  rx="4"
-                  fill="#022c22"
-                  stroke="#059669"
-                  strokeWidth="1.2"
-                />
-                <text
-                  x="367"
-                  y="78"
-                  fill="#34d399"
-                  fontSize="6.8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  STAIR F
-                </text>
-                <text
-                  x="367"
-                  y="88"
-                  fill="#a7f3d0"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  SECURE
-                </text>
-              </g>
-
-              {/* Stair G - East Central sector */}
-              <g
-                onClick={() =>
-                  onLogEvent("Stair G (East Core Corridor) verified secure.")
-                }
-                className="cursor-pointer"
-              >
-                <rect
-                  x="500"
-                  y="135"
-                  width="45"
-                  height="30"
-                  rx="4"
-                  fill="#022c22"
-                  stroke="#059669"
-                  strokeWidth="1.2"
-                />
-                <text
-                  x="522"
-                  y="148"
-                  fill="#34d399"
-                  fontSize="6.8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  STAIR G
-                </text>
-                <text
-                  x="522"
-                  y="158"
-                  fill="#a7f3d0"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  textAnchor="middle"
-                >
-                  SECURE
-                </text>
-              </g>
-
-              {/* Area of Rescue Assistance x4 (For high-contrast audit) */}
-              {[
-                { x: 70, y: 165, label: "ARA NW" },
-                { x: 625, y: 165, label: "ARA NE" },
-                { x: 70, y: 395, label: "ARA SW" },
-                { x: 625, y: 305, label: "ARA SE" },
-              ].map((ara, index) => (
-                <g key={index}>
-                  <rect
-                    x={ara.x}
-                    y={ara.y}
-                    width="42"
-                    height="15"
-                    rx="3"
-                    fill="#172554"
-                    stroke="#3b82f6"
-                    strokeWidth="1.2"
-                  />
-                  <text
-                    x={ara.x + 21}
-                    y={ara.y + 10}
-                    fill="#93c5fd"
-                    fontSize="7"
-                    fontWeight="bold"
-                    fontFamily="monospace"
-                    textAnchor="middle"
-                  >
-                    {ara.label}
-                  </text>
-                </g>
-              ))}
-
-              {/* Real building plan photo (public/building-plan.png) — covers the
-                  drawn schematic when present so the map matches the actual sheet. */}
-              {hasPlan && (
+              {/* Real 7th-floor As-Built plan (public/floor7-plan.png) */}
+              {hasPlan ? (
                 <>
                   <rect x="0" y="0" width="740" height="500" fill="#ffffff" />
                   <image
@@ -2312,7 +1258,82 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                     preserveAspectRatio="xMidYMid meet"
                   />
                 </>
+              ) : (
+                <text
+                  x="370"
+                  y="250"
+                  fill="#64748b"
+                  fontSize="14"
+                  fontFamily="system-ui, sans-serif"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                >
+                  Floor plan unavailable — marker positions approximate
+                </text>
               )}
+
+              {/* The six real Floor-7 egress stairs (A/C/D/E/F/G — no Stair B
+                  on this floor). Click a stair to mark it BLOCKED / CLEAR. */}
+              {STAIRS.map((s) => {
+                const blocked = blockedStairs.includes(s.id);
+                return (
+                  <g
+                    key={s.id}
+                    onClick={() => onToggleStair(s.id)}
+                    className="cursor-pointer"
+                  >
+                    <title>{`${s.label} · ${s.area} — click to mark ${blocked ? "CLEAR" : "BLOCKED"}`}</title>
+                    {blocked && (
+                      <circle
+                        cx={s.x}
+                        cy={s.y}
+                        r="20"
+                        fill="none"
+                        stroke="#dc2626"
+                        strokeWidth="2"
+                        strokeOpacity="0.4"
+                        className="animate-ping"
+                        style={{
+                          animationDuration: "1.4s",
+                          transformOrigin: `${s.x}px ${s.y}px`,
+                        }}
+                      />
+                    )}
+                    <rect
+                      x={s.x - 26}
+                      y={s.y - 11}
+                      width="52"
+                      height="22"
+                      rx="6"
+                      fill={blocked ? "#dc2626" : "#ffffff"}
+                      stroke={blocked ? "#991b1b" : "#059669"}
+                      strokeWidth="2"
+                    />
+                    <text
+                      x={s.x}
+                      y={s.y - 1}
+                      fill={blocked ? "#ffffff" : "#047857"}
+                      fontSize="9"
+                      fontFamily="system-ui, sans-serif"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      STAIR {s.id}
+                    </text>
+                    <text
+                      x={s.x}
+                      y={s.y + 8}
+                      fill={blocked ? "#fecaca" : "#059669"}
+                      fontSize="6.5"
+                      fontFamily="system-ui, sans-serif"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {blocked ? "✕ BLOCKED" : "✓ CLEAR"}
+                    </text>
+                  </g>
+                );
+              })}
 
               {/* Occupants plotted by quadrant. SAFE & MISSING roll up into
                   per-zone count pills; only actionable people (Critical /
@@ -2610,9 +1631,10 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
           </div>
 
           <p className="text-xs text-slate-600 mt-2 font-mono">
-            * Stair B registers blockages on-click. Dynamic mesh notifications
-            auto-dispatch reroute alerts over Bluetooth. All 7 emergency stair
-            cores are LL26 and ConEdison pilot-compliant.
+            * Tap any stair — on the map or the Stair Control board — to mark it
+            blocked or clear. Reroute alerts auto-dispatch to every phone and
+            tablet over Bluetooth mesh. All 6 Floor-7 stair cores are LL26
+            compliant.
           </p>
         </div>
 

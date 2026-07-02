@@ -12,7 +12,10 @@ export interface Occupant {
     | "Deputy";
   status: "SAFE" | "MISSING" | "NEED_HELP" | "CRITICAL";
   quadrant: "NW" | "NE" | "SW" | "SE" | "Center";
-  staircase?: "Stair A" | "Stair B";
+  // Floor 7 As-Built has six egress stairs: A, C, D, E, F, G (no Stair B —
+  // the B core is elevators/shafts only).
+  staircase?:
+    "Stair A" | "Stair C" | "Stair D" | "Stair E" | "Stair F" | "Stair G";
   musterZone?: "Zone A" | "Zone B";
   lastSeen: string;
   alertNote?: string;
@@ -66,9 +69,7 @@ export type EAPEmergencyType =
   | "Other";
 
 export type EvacDecision =
-  | "EVACUATE"
-  | "SHELTER_IN_PLACE"
-  | "IN_BUILDING_RELOCATION";
+  "EVACUATE" | "SHELTER_IN_PLACE" | "IN_BUILDING_RELOCATION";
 
 export interface ElevatorRecall {
   bank: "A-Bank" | "G-Bank";
