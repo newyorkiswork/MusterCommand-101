@@ -954,7 +954,7 @@ export default function OccupantMobile({
         <div
           role="dialog"
           aria-label="Building map"
-          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => setShowBuildingMap(false)}
         >
           <div

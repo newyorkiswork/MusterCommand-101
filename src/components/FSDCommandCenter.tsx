@@ -1087,10 +1087,10 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
             onMouseUp={mapEndDrag}
             onMouseLeave={mapEndDrag}
             onWheel={mapOnWheel}
-            className={`flex-1 bg-white border-2 border-slate-200 shadow-inner relative flex flex-col items-center justify-center overflow-hidden ${
+            className={`bg-white border-2 border-slate-200 shadow-inner relative flex flex-col items-center justify-center overflow-hidden ${
               mapFullscreen
-                ? "h-full rounded-none"
-                : "rounded-2xl min-h-[420px]"
+                ? "flex-1 h-full rounded-none"
+                : "w-full aspect-[74/50] rounded-2xl"
             }`}
             style={{ cursor: mapDragRef.current ? "grabbing" : "grab" }}
           >
@@ -2314,9 +2314,11 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 </>
               )}
 
-              {/* Occupants dynamically plotted based on quadrant — real building coordinates */}
-              {occupants.map((occ, idx) => {
-                // Coordinate zones calibrated to the real 7th-floor As-Built plan
+              {/* Occupants plotted by quadrant. SAFE & MISSING roll up into
+                  per-zone count pills; only actionable people (Critical /
+                  Need Help / ARA) get individual markers so labels never collide. */}
+              {(() => {
+                // Zone anchors calibrated to the real 7th-floor As-Built plan
                 // (floor7-plan.png, 740x500 viewBox, xMidYMid meet, ~10px top letterbox).
                 // West = Irving Place, East = Third Ave, North = E 15th, South = E 14th.
                 const zones: Record<string, { x: number; y: number }> = {
@@ -2326,146 +2328,261 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                   SE: { x: 480, y: 305 }, // 07-400s office block (Third Ave / E14)
                   Center: { x: 335, y: 215 }, // ELEV LOBBY C / courtyard core
                 };
-                const base = zones[occ.quadrant] || zones.Center;
-                // Spread occupants within each zone so dots don't overlap
-                const ring = idx % 8;
-                const spreadX = ((ring % 4) - 1.5) * 20;
-                const spreadY = (Math.floor(ring / 4) - 0.5) * 22;
-                const coord = { x: base.x + spreadX, y: base.y + spreadY };
 
-                // Status colors
-                const statusColor =
-                  occ.status === "SAFE"
+                const statusColor = (s: string) =>
+                  s === "SAFE"
                     ? "#10b981"
-                    : occ.status === "CRITICAL"
+                    : s === "CRITICAL"
                       ? "#ef4444"
-                      : occ.status === "NEED_HELP"
+                      : s === "NEED_HELP"
                         ? "#f59e0b"
                         : "#94a3b8";
-
-                const isCritical = occ.status === "CRITICAL";
-                const isNeedHelp = occ.status === "NEED_HELP";
-                const isAlert = isCritical || isNeedHelp;
-                const isARA = occ.mobilityImpaired || occ.isAtARA;
-                const isWearable = occ.wearable;
-
-                // Short role label (2 chars)
-                const roleLabel =
-                  occ.role === "Warden"
+                const labelColor = (s: string) =>
+                  s === "SAFE"
+                    ? "#059669"
+                    : s === "CRITICAL"
+                      ? "#dc2626"
+                      : s === "NEED_HELP"
+                        ? "#d97706"
+                        : "#475569";
+                const roleChar = (r: string) =>
+                  r === "Warden"
                     ? "W"
-                    : occ.role === "FSD"
+                    : r === "FSD"
                       ? "F"
-                      : occ.role === "Searcher"
+                      : r === "Searcher"
                         ? "S"
-                        : occ.role === "Deputy"
+                        : r === "Deputy"
                           ? "D"
-                          : occ.role === "Visitor"
+                          : r === "Visitor"
                             ? "V"
-                            : occ.role === "Contractor"
+                            : r === "Contractor"
                               ? "C"
                               : "O";
 
-                return (
-                  <g key={occ.id} className="transition-all duration-500">
-                    {/* Outer detection pulse ring (critical/need-help) */}
-                    {isAlert && (
-                      <circle
-                        cx={coord.x}
-                        cy={coord.y}
-                        r="18"
-                        fill="none"
-                        stroke={statusColor}
-                        strokeWidth="2"
-                        strokeOpacity="0.35"
-                        className="animate-ping"
-                        style={{
-                          animationDuration: isCritical ? "0.9s" : "1.6s",
-                          transformOrigin: `${coord.x}px ${coord.y}px`,
-                        }}
-                      />
-                    )}
-                    {/* Secondary ring */}
-                    <circle
-                      cx={coord.x}
-                      cy={coord.y}
-                      r="13"
-                      fill="none"
-                      stroke={statusColor}
-                      strokeWidth="1.5"
-                      strokeDasharray={isAlert ? "none" : "3 3"}
-                      strokeOpacity={isAlert ? "0.7" : "0.5"}
-                      className={isAlert ? "animate-pulse" : ""}
-                      style={{
-                        animationDuration: "2s",
-                        transformOrigin: `${coord.x}px ${coord.y}px`,
-                      }}
-                    />
-                    {/* Main occupant dot */}
-                    <circle
-                      cx={coord.x}
-                      cy={coord.y}
-                      r="9"
-                      fill={statusColor}
-                      stroke="white"
-                      strokeWidth="2"
-                    />
-                    {/* Role character inside dot */}
-                    <text
-                      x={coord.x}
-                      y={coord.y + 3.5}
-                      fill="white"
-                      fontSize="8"
-                      fontFamily="system-ui, sans-serif"
-                      fontWeight="bold"
-                      textAnchor="middle"
-                    >
-                      {roleLabel}
-                    </text>
-                    {/* ARA wheelchair icon */}
-                    {isARA && (
-                      <text
-                        x={coord.x + 11}
-                        y={coord.y - 7}
-                        fontSize="9"
-                        textAnchor="middle"
-                      >
-                        ♿
-                      </text>
-                    )}
-                    {/* Wearable sensor icon */}
-                    {isWearable && (
-                      <text
-                        x={coord.x - 11}
-                        y={coord.y - 7}
-                        fontSize="9"
-                        textAnchor="middle"
-                      >
-                        📡
-                      </text>
-                    )}
-                    {/* Name label */}
-                    <text
-                      x={coord.x}
-                      y={coord.y + 23}
-                      fill={
-                        occ.status === "SAFE"
-                          ? "#059669"
-                          : occ.status === "CRITICAL"
-                            ? "#dc2626"
-                            : occ.status === "NEED_HELP"
-                              ? "#d97706"
-                              : "#475569"
-                      }
-                      fontSize="7.5"
-                      fontFamily="monospace"
-                      fontWeight="bold"
-                      textAnchor="middle"
-                    >
-                      {occ.badgeId}
-                    </text>
-                  </g>
-                );
-              })}
+                return Object.entries(zones).map(([zoneKey, base]) => {
+                  const group = occupants.filter((o) =>
+                    zoneKey === "Center"
+                      ? o.quadrant === "Center" || !(o.quadrant in zones)
+                      : o.quadrant === zoneKey,
+                  );
+                  if (group.length === 0) return null;
+
+                  // Individually plotted: needs action or ARA priority
+                  const featured = group.filter(
+                    (o) =>
+                      o.status === "CRITICAL" ||
+                      o.status === "NEED_HELP" ||
+                      o.mobilityImpaired ||
+                      o.isAtARA,
+                  );
+                  const safeOccs = group.filter(
+                    (o) => o.status === "SAFE" && !featured.includes(o),
+                  );
+                  const missingOccs = group.filter(
+                    (o) => !featured.includes(o) && !safeOccs.includes(o),
+                  );
+
+                  // Featured markers laid out in rows of 3, wide enough for label chips
+                  const perRow = 3;
+                  const rowCount = Math.ceil(featured.length / perRow);
+                  const colGap = 50;
+                  const rowGap = 48;
+
+                  // Count pills sit below the featured block (or at the anchor)
+                  const pillY =
+                    featured.length > 0
+                      ? base.y + ((rowCount - 1) / 2) * rowGap + 42
+                      : base.y;
+                  const bothPills =
+                    safeOccs.length > 0 && missingOccs.length > 0;
+
+                  return (
+                    <g key={zoneKey} className="transition-all duration-500">
+                      {featured.map((occ, i) => {
+                        const row = Math.floor(i / perRow);
+                        const inThisRow = Math.min(
+                          perRow,
+                          featured.length - row * perRow,
+                        );
+                        const col = i % perRow;
+                        const coord = {
+                          x: base.x + (col - (inThisRow - 1) / 2) * colGap,
+                          y: base.y + (row - (rowCount - 1) / 2) * rowGap,
+                        };
+                        const color = statusColor(occ.status);
+                        const isCritical = occ.status === "CRITICAL";
+                        const isAlert =
+                          isCritical || occ.status === "NEED_HELP";
+                        const isARA = occ.mobilityImpaired || occ.isAtARA;
+
+                        return (
+                          <g key={occ.id}>
+                            <title>{`${occ.badgeId} · ${occ.role} · ${occ.status.replace("_", " ")}`}</title>
+                            {/* Outer detection pulse ring (critical/need-help) */}
+                            {isAlert && (
+                              <circle
+                                cx={coord.x}
+                                cy={coord.y}
+                                r="17"
+                                fill="none"
+                                stroke={color}
+                                strokeWidth="2"
+                                strokeOpacity="0.35"
+                                className="animate-ping"
+                                style={{
+                                  animationDuration: isCritical
+                                    ? "0.9s"
+                                    : "1.6s",
+                                  transformOrigin: `${coord.x}px ${coord.y}px`,
+                                }}
+                              />
+                            )}
+                            {/* Secondary ring */}
+                            <circle
+                              cx={coord.x}
+                              cy={coord.y}
+                              r="13"
+                              fill="none"
+                              stroke={color}
+                              strokeWidth="1.5"
+                              strokeDasharray={isAlert ? "none" : "3 3"}
+                              strokeOpacity={isAlert ? "0.7" : "0.5"}
+                              className={isAlert ? "animate-pulse" : ""}
+                              style={{
+                                animationDuration: "2s",
+                                transformOrigin: `${coord.x}px ${coord.y}px`,
+                              }}
+                            />
+                            {/* Main occupant dot */}
+                            <circle
+                              cx={coord.x}
+                              cy={coord.y}
+                              r="9"
+                              fill={color}
+                              stroke="white"
+                              strokeWidth="2"
+                            />
+                            {/* Role character inside dot */}
+                            <text
+                              x={coord.x}
+                              y={coord.y + 3.5}
+                              fill="white"
+                              fontSize="8"
+                              fontFamily="system-ui, sans-serif"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                            >
+                              {roleChar(occ.role)}
+                            </text>
+                            {/* ARA wheelchair icon */}
+                            {isARA && (
+                              <text
+                                x={coord.x + 11}
+                                y={coord.y - 7}
+                                fontSize="9"
+                                textAnchor="middle"
+                              >
+                                ♿
+                              </text>
+                            )}
+                            {/* Wearable sensor icon */}
+                            {occ.wearable && (
+                              <text
+                                x={coord.x - 11}
+                                y={coord.y - 7}
+                                fontSize="9"
+                                textAnchor="middle"
+                              >
+                                📡
+                              </text>
+                            )}
+                            {/* Badge label on white chip so it stays legible */}
+                            <rect
+                              x={coord.x - 22}
+                              y={coord.y + 14}
+                              width="44"
+                              height="12"
+                              rx="6"
+                              fill="white"
+                              fillOpacity="0.95"
+                              stroke={labelColor(occ.status)}
+                              strokeWidth="0.75"
+                            />
+                            <text
+                              x={coord.x}
+                              y={coord.y + 22.5}
+                              fill={labelColor(occ.status)}
+                              fontSize="7"
+                              fontFamily="monospace"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                            >
+                              {occ.badgeId}
+                            </text>
+                          </g>
+                        );
+                      })}
+
+                      {/* SAFE cluster pill */}
+                      {safeOccs.length > 0 && (
+                        <g>
+                          <title>{`Safe in ${zoneKey}: ${safeOccs.map((o) => o.badgeId).join(", ")}`}</title>
+                          <rect
+                            x={(bothPills ? base.x - 60 : base.x - 29) + 0}
+                            y={pillY - 9}
+                            width="58"
+                            height="18"
+                            rx="9"
+                            fill="#059669"
+                            stroke="white"
+                            strokeWidth="1.5"
+                          />
+                          <text
+                            x={bothPills ? base.x - 31 : base.x}
+                            y={pillY + 3.5}
+                            fill="white"
+                            fontSize="9"
+                            fontFamily="system-ui, sans-serif"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            ✓ {safeOccs.length} SAFE
+                          </text>
+                        </g>
+                      )}
+
+                      {/* MISSING / unaccounted cluster pill */}
+                      {missingOccs.length > 0 && (
+                        <g>
+                          <title>{`Unaccounted in ${zoneKey}: ${missingOccs.map((o) => o.badgeId).join(", ")}`}</title>
+                          <rect
+                            x={bothPills ? base.x + 2 : base.x - 33}
+                            y={pillY - 9}
+                            width="66"
+                            height="18"
+                            rx="9"
+                            fill="#64748b"
+                            stroke="white"
+                            strokeWidth="1.5"
+                          />
+                          <text
+                            x={bothPills ? base.x + 35 : base.x}
+                            y={pillY + 3.5}
+                            fill="white"
+                            fontSize="9"
+                            fontFamily="system-ui, sans-serif"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            {missingOccs.length} MISSING
+                          </text>
+                        </g>
+                      )}
+                    </g>
+                  );
+                });
+              })()}
             </svg>
 
             {/* Map Legend — light theme */}
