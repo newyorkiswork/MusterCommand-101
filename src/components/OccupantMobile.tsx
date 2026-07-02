@@ -122,7 +122,7 @@ const STATUS_CONFIG = {
     bg: "bg-slate-500",
     text: "text-white",
     label: "MISSING",
-    card: "bg-slate-100 border-slate-300",
+    card: "bg-slate-850 border-slate-300",
   },
   NEED_HELP: {
     bg: "bg-amber-600",
@@ -503,7 +503,7 @@ export default function OccupantMobile({
                   className={`rounded-xl px-4 py-3 flex items-center gap-3 border-2 ${
                     checkedIn
                       ? "bg-emerald-50 border-emerald-400"
-                      : "bg-slate-50 border-slate-300"
+                      : "bg-white border-slate-300"
                   }`}
                 >
                   <div
@@ -977,7 +977,7 @@ export default function OccupantMobile({
                 <X size={18} />
               </button>
             </div>
-            <div className="flex-1 overflow-auto bg-slate-50">
+            <div className="flex-1 overflow-auto bg-white">
               {/* Building overview */}
               <div className="p-3 border-b border-slate-200">
                 <div className="flex items-center gap-2 mb-2">
