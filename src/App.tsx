@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { INITIAL_OCCUPANTS, SEED_LEDGER, MUSTER_ZONES } from "./data";
 import { Occupant, LedgerBlock } from "./types";
 import { clientSHA256, createNextBlock, sanitizeText } from "./utils";
+import { AuthUser } from "./auth";
+import AuthScreen from "./components/AuthScreen";
+import SignOutDialog from "./components/SignOutDialog";
 import OccupantMobile from "./components/OccupantMobile";
 import WardenTablet from "./components/WardenTablet";
 import FSDCommandCenter from "./components/FSDCommandCenter";
@@ -27,6 +30,10 @@ export default function App() {
   const [occupants, setOccupants] = useState<Occupant[]>(INITIAL_OCCUPANTS);
   // Hash-Chained ledger
   const [ledger, setLedger] = useState<LedgerBlock[]>(SEED_LEDGER);
+
+  // Authentication state
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
   // View mode switcher: ALL (Split screen), OCCUPANT, WARDEN, FSD
   const [viewMode, setViewMode] = useState<
@@ -347,6 +354,28 @@ export default function App() {
     );
   };
 
+  // Sign out handler
+  const handleSignOut = () => {
+    setCurrentUser(null);
+    setShowSignOutDialog(false);
+    logEvent(
+      `✓ Signed out. Session ended for badge ${currentUser?.badgeId} (${currentUser?.role}). Ledger persisted.`,
+    );
+  };
+
+  // If not authenticated, show auth screen
+  if (!currentUser) {
+    return (
+      <AuthScreen
+        onAuthSuccess={(user) => {
+          setCurrentUser(user);
+          logEvent(`🔐 Authenticated: ${user.badgeId} (${user.role})`);
+        }}
+        onLogEvent={logEvent}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
       {/* Master Pilot Header banner */}
@@ -400,6 +429,27 @@ export default function App() {
               </button>
             </div>
 
+            {/* User session + sign out */}
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 px-3.5 py-2 rounded-xl border border-slate-800/80 text-xs font-bold text-slate-300 font-mono">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    currentUser.loginMethod === "biometric"
+                      ? "bg-emerald-500"
+                      : "bg-blue-500"
+                  } animate-pulse`}
+                />
+                <span>{currentUser.badgeId}</span>
+                <span className="text-slate-500">•</span>
+                <span className="capitalize">{currentUser.role}</span>
+              </div>
+              <button
+                onClick={() => setShowSignOutDialog(true)}
+                className="px-4 py-2 rounded-xl bg-red-600/20 border border-red-600/50 text-red-400 hover:text-red-300 hover:border-red-500 text-sm font-bold transition-all cursor-pointer"
+              >
+                Sign Out
+              </button>
+            </div>
             {/* Static Vault rotation panel */}
             <div className="hidden lg:flex items-center gap-1.5 bg-slate-950/60 font-mono text-xs text-slate-500 px-3 py-2.5 rounded-xl border border-slate-800/80 select-none">
               <Lock size={12} className="text-emerald-500" />
@@ -657,6 +707,14 @@ export default function App() {
             </section>
           )}
         </div>
+
+        {/* Sign Out Dialog */}
+        <SignOutDialog
+          currentUser={currentUser}
+          isOpen={showSignOutDialog}
+          onConfirm={handleSignOut}
+          onCancel={() => setShowSignOutDialog(false)}
+        />
 
         {/* System Audit Log */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
