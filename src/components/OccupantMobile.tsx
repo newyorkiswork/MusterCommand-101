@@ -22,6 +22,7 @@ import {
 import { Occupant } from "../types";
 import { STAIRS, STAIR_REROUTE_PRIORITY } from "../data";
 import { sanitizeText, validateBadgeSyntax } from "../utils";
+import FloorPlanHandheld from "./FloorPlanHandheld";
 
 // Schema for input evaluation complying with Level 1 validation
 const alertFormSchema = z.object({
@@ -388,39 +389,21 @@ export default function OccupantMobile({
                   id="building-heading"
                   className="text-sm font-black text-slate-200 uppercase tracking-wide"
                 >
-                  Know Your Building
+                  Floor 7 Evacuation Map
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowBuildingMap(true)}
-                aria-label="Open full building map"
-                className="w-full relative bg-white border-2 border-blue-400 rounded-2xl overflow-hidden cursor-pointer hover:border-blue-600 hover:shadow-lg transition-all group"
-              >
-                <img
-                  src="/building-plan.png"
-                  alt="4 Irving Place building plan showing elevator banks, stairs and exits"
-                  className="w-full h-44 object-contain bg-white p-1"
-                />
-                <div className="absolute bottom-0 left-0 right-0 bg-blue-600 px-3 py-2 flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold text-white">
-                    4 Irving Place · Elevator banks, stairs &amp; exits
-                  </p>
-                  <span className="flex items-center gap-1 text-xs text-blue-100 font-semibold shrink-0">
-                    <Maximize2 size={12} /> Full map
-                  </span>
-                </div>
-              </button>
-              <p className="text-xs text-slate-400 mt-2 leading-snug">
-                Locate{" "}
-                <span className="font-black text-emerald-700">
-                  Stair A (North)
-                </span>{" "}
-                and the main lobby before an emergency.{" "}
-                <span className="font-semibold text-blue-700">
-                  Tap the map to enlarge.
-                </span>
-              </p>
+              <FloorPlanHandheld
+                blockedStairs={blockedStairs}
+                recommendedStair={recommendedStairId}
+                recommendedStairArea={recommendedStair.area}
+              />
+              <div className="flex items-start gap-2 mt-3 bg-blue-50 border border-blue-300 rounded-xl p-2.5">
+                <MapPin size={14} className="text-blue-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-700 font-semibold leading-snug">
+                  <strong>✓ Stair {recommendedStairId}</strong> is your
+                  evacuation route. Review the map above before an emergency.
+                </p>
+              </div>
             </section>
 
             {/* ── STEP 1: YOUR EVACUATION ROUTE ───────────────── */}
