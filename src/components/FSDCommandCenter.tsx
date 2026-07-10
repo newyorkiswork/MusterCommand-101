@@ -26,6 +26,9 @@ import {
   RotateCcw,
   Accessibility,
   ArrowUpDown,
+  Radio,
+  Users,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   Occupant,
@@ -197,6 +200,13 @@ export default function FSDCommandCenter({
   // and wardens always know whether a command is a DRILL or a REAL order.
   const deployDirective = (txt: string) =>
     onDispatchDirective(isDrill ? `🟦 DRILL — ${txt}` : `🔴 REAL — ${txt}`);
+
+  // ─── Command Deck primary tab: focuses admin on one surface at a time. ───
+  // Reduces on-screen density without hiding any capability — every panel is
+  // reachable in one click, but never all at once.
+  const [activeTab, setActiveTab] = useState<
+    "COMMAND" | "PEOPLE" | "COMPLIANCE"
+  >("COMMAND");
 
   // ─── EAP Emergency Declaration state ───────────────────────────────────
   const [selectedEmergency, setSelectedEmergency] =
@@ -632,6 +642,85 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
           </div>
         );
       })()}
+
+      {/* ── Primary Tab Bar — Command / People / Compliance ──────────────────────────── */}
+      {/* Focused workspaces reduce visual load without hiding any capability.    */}
+      {(() => {
+        const tabs = [
+          {
+            id: "COMMAND" as const,
+            label: "Command",
+            desc: "Deploy directives, control stairs & elevators",
+            icon: Radio,
+            color: "bg-red-600 border-red-500",
+          },
+          {
+            id: "PEOPLE" as const,
+            label: "People",
+            desc: "Headcount, locator & red list",
+            icon: Users,
+            color: "bg-blue-600 border-blue-500",
+          },
+          {
+            id: "COMPLIANCE" as const,
+            label: "Compliance",
+            desc: "Metrics, ledger & FDNY reports",
+            icon: ClipboardCheck,
+            color: "bg-indigo-600 border-indigo-500",
+          },
+        ];
+        return (
+          <div
+            role="tablist"
+            aria-label="Command Deck workspace"
+            className="mb-5 bg-white border border-slate-200 rounded-2xl p-1.5 grid grid-cols-3 gap-1.5 shadow-sm"
+          >
+            {tabs.map((t) => {
+              const active = activeTab === t.id;
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActiveTab(t.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all cursor-pointer border-2 ${
+                    active
+                      ? `${t.color} text-white shadow-md`
+                      : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-300"
+                  }`}
+                >
+                  <Icon
+                    size={20}
+                    className={active ? "text-white shrink-0" : "shrink-0"}
+                  />
+                  <div className="min-w-0">
+                    <div
+                      className={`text-sm font-black uppercase tracking-wide leading-none ${
+                        active ? "text-white" : "text-slate-200"
+                      }`}
+                    >
+                      {t.label}
+                    </div>
+                    <div
+                      className={`text-xs mt-1 leading-tight truncate ${
+                        active ? "text-white/85" : "text-slate-500"
+                      }`}
+                    >
+                      {t.desc}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* ════ COMMAND TAB ═════════════════════════════════════════════════ */}
+      {activeTab === "COMMAND" && (
+        <>
 
       {/* EAP EMERGENCY DECLARATION + ELEVATOR RECALL — full-width row above panels */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 mb-5">
@@ -1637,9 +1726,17 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
             compliant.
           </p>
         </div>
+      </div>
+        </>
+      )}
+
+      {/* ════ PEOPLE TAB ══════════════════════════════════════════════════ */}
+      {activeTab === "PEOPLE" && (
+        <>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
 
         {/* PANEL 3: HEADCOUNT & DYNAMIC LOCATOR BOARD */}
-        <div className="xl:col-span-4 min-h-[560px] bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 flex flex-col justify-between overflow-hidden">
+        <div className="xl:col-span-12 min-h-[560px] bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 flex flex-col justify-between overflow-hidden">
           <div className="flex flex-col flex-1 overflow-hidden">
             {/* Header Telemetry */}
             <div className="flex justify-between items-center mb-2 shrink-0">
@@ -2220,6 +2317,12 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
         </div>
       </div>
 
+        </>
+      )}
+
+      {/* ════ COMPLIANCE TAB ══════════════════════════════════════════════ */}
+      {activeTab === "COMPLIANCE" && (
+        <>
       {/* Down Layer bento expansions */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 mt-5">
         {/* LIVE INCIDENT KPIs — Floor 7 real-time metric board */}
@@ -2709,6 +2812,9 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
           );
         })()}
       </div>
+
+        </>
+      )}
 
       {/* Pop up generated PDF Compliance report view */}
       {fdnyReport ? (
