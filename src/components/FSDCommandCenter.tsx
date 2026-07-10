@@ -2233,7 +2233,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
               </span>
             </div>
             <span className="text-xs bg-indigo-100 text-indigo-700 border border-indigo-300 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
-              FLOOR 7 · {FLOOR7_CENSUS.totalOccupants} OCCUPANTS
+              FLOOR 7 · {occupants.length} OCCUPANTS
             </span>
           </div>
 
@@ -2287,7 +2287,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
               <div className="text-2xl font-mono font-black text-amber-700 leading-none">
                 {occupants.filter((o) => o.status === "SAFE").length}
                 <span className="text-sm text-slate-500">
-                  /{FLOOR7_CENSUS.totalOccupants}
+                  /{occupants.length}
                 </span>
               </div>
               <div className="text-xs text-slate-500 font-mono">
@@ -2420,7 +2420,7 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
                 {isBlackout
                   ? `${Math.round(
                       (occupants.filter((o) => Boolean(o.status)).length /
-                        FLOOR7_CENSUS.totalOccupants) *
+                        Math.max(occupants.length, 1)) *
                         100,
                     )}%`
                   : "100%"}
@@ -2552,68 +2552,162 @@ IN TRANSIT    : ${occupants.filter((o) => (o.mobilityImpaired || o.isAtARA) && !
             </span>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {PILOT_GOALS.map((g) => {
-            const pilotCtx: PilotGoalContext = {
-              occupants,
-              ledger,
-              ledgerVerified: ledgerIntegrity.verified,
-              elapsedSeconds,
-              isBlackout,
-              isDrill,
-              activeDirective,
-              records: recordStats,
-            };
-            const r = g.evaluate(pilotCtx);
-            const badge =
-              r.status === "MET"
-                ? "bg-emerald-100 text-emerald-700 border-emerald-300"
-                : r.status === "AT_RISK"
-                  ? "bg-red-100 text-red-700 border-red-300"
-                  : r.status === "PENDING"
-                    ? "bg-slate-850 text-slate-600 border-slate-300"
-                    : "bg-amber-100 text-amber-700 border-amber-300";
-            const valueColor =
-              r.status === "MET"
-                ? "text-emerald-700"
-                : r.status === "AT_RISK"
-                  ? "text-red-700"
-                  : r.status === "PENDING"
-                    ? "text-slate-600"
-                    : "text-amber-700";
-            return (
-              <div
-                key={g.id}
-                className="rounded-xl border bg-slate-950 border-slate-200 p-4"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-bold text-slate-200 leading-tight">
-                    {g.title}
-                  </span>
-                  <span
-                    className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 border ${badge}`}
-                  >
-                    {r.status.replace("_", " ")}
-                  </span>
-                </div>
-                <div className="text-xs text-slate-600 font-mono mt-1">
-                  🎯 {g.target}
-                  {g.stretch ? ` · stretch ${g.stretch}` : ""}
-                </div>
-                <div
-                  className={`text-sm font-mono font-bold mt-0.5 ${valueColor}`}
-                >
-                  {r.value}
-                </div>
-                {r.detail && (
-                  <div className="text-xs text-slate-500 mt-1 leading-tight border-t border-slate-200 pt-1">
-                    {r.detail}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {/* Compliance-first: metrics grouped by the regulation that drove each
+            requirement, so auditors can verify OSHA/LL26/FDNY/NFPA/ADA coverage
+            without cross-referencing a separate PRD. */}
+        {(() => {
+          const pilotCtx: PilotGoalContext = {
+            occupants,
+            ledger,
+            ledgerVerified: ledgerIntegrity.verified,
+            elapsedSeconds,
+            isBlackout,
+            isDrill,
+            activeDirective,
+            records: recordStats,
+          };
+
+          // Ordered so the highest-authority regulations render first
+          const regulationOrder = [
+            "OSHA 29 CFR 1910.38",
+            "NYC Local Law 26 / RS-17",
+            "FDNY F-89",
+            "NFPA 72 / EAP",
+            "ADA / EAP ARA",
+          ] as const;
+
+          const regColors: Record<
+            string,
+            { chip: string; accent: string }
+          > = {
+            "OSHA 29 CFR 1910.38": {
+              chip: "bg-blue-100 text-blue-700 border-blue-300",
+              accent: "border-l-blue-500",
+            },
+            "NYC Local Law 26 / RS-17": {
+              chip: "bg-indigo-100 text-indigo-700 border-indigo-300",
+              accent: "border-l-indigo-500",
+            },
+            "FDNY F-89": {
+              chip: "bg-red-100 text-red-700 border-red-300",
+              accent: "border-l-red-500",
+            },
+            "NFPA 72 / EAP": {
+              chip: "bg-amber-100 text-amber-700 border-amber-300",
+              accent: "border-l-amber-500",
+            },
+            "ADA / EAP ARA": {
+              chip: "bg-emerald-100 text-emerald-700 border-emerald-300",
+              accent: "border-l-emerald-500",
+            },
+          };
+
+          return (
+            <div className="space-y-5">
+              {regulationOrder.map((reg) => {
+                const goals = PILOT_GOALS.filter((g) => g.regulation === reg);
+                if (goals.length === 0) return null;
+
+                // Tally section status
+                const results = goals.map((g) => g.evaluate(pilotCtx));
+                const metCount = results.filter(
+                  (r) => r.status === "MET",
+                ).length;
+                const atRiskCount = results.filter(
+                  (r) => r.status === "AT_RISK",
+                ).length;
+                const sectionStatusChip =
+                  atRiskCount > 0
+                    ? "bg-red-100 text-red-700 border-red-300"
+                    : metCount === goals.length
+                      ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                      : "bg-amber-100 text-amber-700 border-amber-300";
+
+                return (
+                  <section key={reg}>
+                    {/* Regulation section header */}
+                    <div className="flex items-center justify-between gap-2 mb-2.5 pb-1.5 border-b border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs font-mono font-bold px-2 py-0.5 rounded uppercase border ${regColors[reg].chip}`}
+                        >
+                            {reg}
+                        </span>
+                        <span className="text-xs text-slate-500 font-mono">
+                          {goals.length} metric
+                          {goals.length === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-xs font-mono font-bold px-2 py-0.5 rounded uppercase border ${sectionStatusChip}`}
+                      >
+                        {metCount}/{goals.length} met
+                        {atRiskCount > 0 && ` · ${atRiskCount} at risk`}
+                      </span>
+                    </div>
+
+                    {/* Cards for this regulation */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {goals.map((g, i) => {
+                        const r = results[i];
+                        const badge =
+                          r.status === "MET"
+                            ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                            : r.status === "AT_RISK"
+                              ? "bg-red-100 text-red-700 border-red-300"
+                              : r.status === "PENDING"
+                                ? "bg-slate-100 text-slate-600 border-slate-300"
+                                : "bg-amber-100 text-amber-700 border-amber-300";
+                        const valueColor =
+                          r.status === "MET"
+                            ? "text-emerald-700"
+                            : r.status === "AT_RISK"
+                              ? "text-red-700"
+                              : r.status === "PENDING"
+                                ? "text-slate-600"
+                                : "text-amber-700";
+                        return (
+                          <div
+                            key={g.id}
+                            className={`rounded-xl border border-slate-200 border-l-4 ${regColors[reg].accent} bg-white p-3.5 shadow-sm`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="text-sm font-bold text-slate-200 leading-tight">
+                                {g.title}
+                              </span>
+                              <span
+                                className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded uppercase shrink-0 border ${badge}`}
+                              >
+                                {r.status.replace("_", " ")}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-500 font-mono mt-1 leading-snug">
+                              {g.citation}
+                            </div>
+                            <div className="text-xs text-slate-600 font-mono mt-1.5">
+                              🎯 {g.target}
+                              {g.stretch ? ` · stretch ${g.stretch}` : ""}
+                            </div>
+                            <div
+                              className={`text-sm font-mono font-bold mt-0.5 ${valueColor}`}
+                            >
+                              {r.value}
+                            </div>
+                            {r.detail && (
+                              <div className="text-xs text-slate-500 mt-1.5 leading-tight border-t border-slate-200 pt-1.5">
+                                {r.detail}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Pop up generated PDF Compliance report view */}
