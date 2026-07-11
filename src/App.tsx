@@ -8,22 +8,7 @@ import SignOutDialog from "./components/SignOutDialog";
 import OccupantMobile from "./components/OccupantMobile";
 import WardenTablet from "./components/WardenTablet";
 import FSDCommandCenter from "./components/FSDCommandCenter";
-import {
-  ShieldCheck,
-  Eye,
-  EyeOff,
-  Radio,
-  Lock,
-  RefreshCw,
-  AlertOctagon,
-  Activity,
-  Grid,
-  Maximize2,
-  Minimize2,
-  Smartphone,
-  Tablet,
-  Monitor,
-} from "lucide-react";
+import { Radio, Grid, Smartphone, Tablet, Monitor } from "lucide-react";
 
 export default function App() {
   // Occupants roster (Tokenized at Rest)
@@ -34,6 +19,8 @@ export default function App() {
   // Authentication state
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  // Audit log collapsed by default — keeps the shell clean; expandable on demand
+  const [showAuditLog, setShowAuditLog] = useState(false);
 
   // View mode switcher: ALL (Split screen), OCCUPANT, WARDEN, FSD
   const [viewMode, setViewMode] = useState<
@@ -369,12 +356,27 @@ export default function App() {
       <AuthScreen
         onAuthSuccess={(user) => {
           setCurrentUser(user);
+          // Land each role on THEIR device view — no hunting through panels
+          setViewMode(
+            user.role === "FSD"
+              ? "FSD"
+              : user.role === "Warden"
+                ? "WARDEN"
+                : "OCCUPANT",
+          );
           logEvent(`🔐 Authenticated: ${user.badgeId} (${user.role})`);
         }}
         onLogEvent={logEvent}
       />
     );
   }
+
+  // Live headcount — the single most important number in the app, always visible
+  const safeCount = occupants.filter((o) => o.status === "SAFE").length;
+  const missingCount = occupants.filter((o) => o.status === "MISSING").length;
+  const criticalCount = occupants.filter(
+    (o) => o.status === "CRITICAL" || o.fallDetected,
+  ).length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
@@ -400,60 +402,106 @@ export default function App() {
             </div>
           </div>
 
-          {/* Master Controller Dashboard Toggles */}
+          {/* Right side: LIVE HEADCOUNT (the app's core number) + session */}
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            {/* Blackout toggle */}
-            <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800 w-full sm:w-auto">
-              <span className="text-slate-400 font-mono text-xs uppercase tracking-wider pl-1 flex items-center gap-1.5">
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${isBlackout ? "bg-yellow-500 animate-pulse" : "bg-emerald-500"}`}
-                />
-                <span>Mesh Blackout</span>
-              </span>
-              <button
-                onClick={() => {
-                  setIsBlackout(!isBlackout);
-                  logEvent(
-                    isBlackout
-                      ? "Online sync restored. Defaulting 5G/Wi-Fi router links."
-                      : "BLACKOUT TRIGGERED. Defaulting communications safely to local BLE Mesh.",
-                  );
-                }}
-                className={`px-3.5 py-1.5 rounded-lg font-mono font-bold text-xs transition-all uppercase cursor-pointer ${
-                  isBlackout
-                    ? "bg-yellow-600 text-slate-950"
-                    : "bg-slate-800 text-slate-300 hover:text-slate-100 hover:bg-slate-700"
+            {/* Live headcount strip — always visible, at a glance */}
+            <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+              <div className="px-3 py-1.5 rounded-lg bg-emerald-600/15 border border-emerald-600/40 text-center min-w-16">
+                <div className="text-lg font-mono font-black text-emerald-400 leading-none">
+                  {safeCount}
+                </div>
+                <div className="text-xs font-bold text-emerald-500/80 uppercase mt-0.5">
+                  Safe
+                </div>
+              </div>
+              <div
+                className={`px-3 py-1.5 rounded-lg border text-center min-w-16 ${
+                  missingCount > 0
+                    ? "bg-slate-800 border-slate-600"
+                    : "bg-slate-900 border-slate-800"
                 }`}
               >
-                {isBlackout ? "● Active" : "Trigger"}
-              </button>
+                <div className="text-lg font-mono font-black text-slate-300 leading-none">
+                  {missingCount}
+                </div>
+                <div className="text-xs font-bold text-slate-400 uppercase mt-0.5">
+                  Missing
+                </div>
+              </div>
+              <div
+                className={`px-3 py-1.5 rounded-lg border text-center min-w-16 ${
+                  criticalCount > 0
+                    ? "bg-red-600/20 border-red-500/60 animate-pulse"
+                    : "bg-slate-900 border-slate-800"
+                }`}
+              >
+                <div
+                  className={`text-lg font-mono font-black leading-none ${
+                    criticalCount > 0 ? "text-red-400" : "text-slate-500"
+                  }`}
+                >
+                  {criticalCount}
+                </div>
+                <div
+                  className={`text-xs font-bold uppercase mt-0.5 ${
+                    criticalCount > 0 ? "text-red-400/90" : "text-slate-500"
+                  }`}
+                >
+                  Critical
+                </div>
+              </div>
+              <div className="px-3 py-1.5 text-center min-w-14">
+                <div className="text-lg font-mono font-black text-slate-200 leading-none">
+                  {occupants.length}
+                </div>
+                <div className="text-xs font-bold text-slate-500 uppercase mt-0.5">
+                  Total
+                </div>
+              </div>
             </div>
 
-            {/* User session + sign out */}
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 px-3.5 py-2 rounded-xl border border-slate-800/80 text-xs font-bold text-slate-300 font-mono">
+            {/* Compact blackout toggle */}
+            <button
+              onClick={() => {
+                setIsBlackout(!isBlackout);
+                logEvent(
+                  isBlackout
+                    ? "Online sync restored. Defaulting 5G/Wi-Fi router links."
+                    : "BLACKOUT TRIGGERED. Defaulting communications safely to local BLE Mesh.",
+                );
+              }}
+              title={
+                isBlackout
+                  ? "Blackout active — tap to restore network"
+                  : "Simulate network blackout (BLE mesh failover)"
+              }
+              className={`px-3.5 py-2.5 rounded-xl font-mono font-bold text-xs uppercase transition-all cursor-pointer border ${
+                isBlackout
+                  ? "bg-yellow-600 text-slate-950 border-yellow-500 animate-pulse"
+                  : "bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200"
+              }`}
+            >
+              {isBlackout ? "⚡ Blackout ON" : "⚡ Blackout"}
+            </button>
+
+            {/* Session + sign out */}
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 px-3 py-2.5 rounded-xl border border-slate-800/80 text-xs font-bold text-slate-300 font-mono">
                 <span
                   className={`w-2 h-2 rounded-full ${
                     currentUser.loginMethod === "biometric"
                       ? "bg-emerald-500"
                       : "bg-blue-500"
-                  } animate-pulse`}
+                  }`}
                 />
                 <span>{currentUser.badgeId}</span>
-                <span className="text-slate-500">•</span>
-                <span className="capitalize">{currentUser.role}</span>
               </div>
               <button
                 onClick={() => setShowSignOutDialog(true)}
-                className="px-4 py-2 rounded-xl bg-red-600/20 border border-red-600/50 text-red-400 hover:text-red-300 hover:border-red-500 text-sm font-bold transition-all cursor-pointer"
+                className="px-3.5 py-2.5 rounded-xl bg-red-600/20 border border-red-600/50 text-red-400 hover:text-red-300 hover:border-red-500 text-xs font-bold transition-all cursor-pointer"
               >
                 Sign Out
               </button>
-            </div>
-            {/* Static Vault rotation panel */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-slate-950/60 font-mono text-xs text-slate-500 px-3 py-2.5 rounded-xl border border-slate-800/80 select-none">
-              <Lock size={12} className="text-emerald-500" />
-              <span>Vault Keys Rotating</span>
             </div>
           </div>
         </div>
@@ -544,40 +592,10 @@ export default function App() {
             <section
               className={`${viewMode === "OCCUPANT" ? "col-span-12 max-w-sm md:max-w-md mx-auto w-full" : "lg:col-span-3"} flex flex-col gap-2 transition-all duration-300`}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  const next = viewMode === "OCCUPANT" ? "ALL" : "OCCUPANT";
-                  setViewMode(next);
-                  logEvent(
-                    next === "ALL"
-                      ? "Returned to All Panels."
-                      : "Expanded: Occupant Handheld.",
-                  );
-                }}
-                className="flex items-center justify-between w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 font-semibold mb-2 cursor-pointer hover:bg-slate-850 hover:border-amber-600/50 transition-all group"
-              >
-                <div className="flex items-center gap-2">
-                  <Smartphone size={14} className="text-amber-500" />
-                  <span>Occupant Handheld</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-amber-600 font-bold">
-                  {viewMode === "OCCUPANT" ? (
-                    <>
-                      <Minimize2 size={12} />
-                      <span>Collapse</span>
-                    </>
-                  ) : (
-                    <>
-                      <Maximize2
-                        size={12}
-                        className="group-hover:scale-110 transition-transform"
-                      />
-                      <span>Expand</span>
-                    </>
-                  )}
-                </div>
-              </button>
+              <div className="flex items-center gap-2 px-1 py-1 text-sm text-slate-400 font-semibold mb-1">
+                <Smartphone size={14} className="text-amber-500" />
+                <span>Occupant Handheld</span>
+              </div>
               <OccupantMobile
                 occupant={occupants[2]} // Alice Smith
                 isBlackout={isBlackout}
@@ -593,40 +611,10 @@ export default function App() {
             <section
               className={`${viewMode === "WARDEN" ? "col-span-full" : "lg:col-span-4"} flex flex-col gap-2 transition-all duration-300`}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  const next = viewMode === "WARDEN" ? "ALL" : "WARDEN";
-                  setViewMode(next);
-                  logEvent(
-                    next === "ALL"
-                      ? "Returned to All Panels."
-                      : "Expanded: Warden Tablet.",
-                  );
-                }}
-                className="flex items-center justify-between w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 font-semibold mb-2 cursor-pointer hover:bg-slate-850 hover:border-amber-600/50 transition-all group"
-              >
-                <div className="flex items-center gap-2">
-                  <Tablet size={14} className="text-amber-500" />
-                  <span>Warden Tablet</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-amber-600 font-bold">
-                  {viewMode === "WARDEN" ? (
-                    <>
-                      <Minimize2 size={12} />
-                      <span>Collapse</span>
-                    </>
-                  ) : (
-                    <>
-                      <Maximize2
-                        size={12}
-                        className="group-hover:scale-110 transition-transform"
-                      />
-                      <span>Expand</span>
-                    </>
-                  )}
-                </div>
-              </button>
+              <div className="flex items-center gap-2 px-1 py-1 text-sm text-slate-400 font-semibold mb-1">
+                <Tablet size={14} className="text-amber-500" />
+                <span>Warden Tablet</span>
+              </div>
               <WardenTablet
                 occupants={occupants}
                 isBlackout={isBlackout}
@@ -642,40 +630,10 @@ export default function App() {
             <section
               className={`${viewMode === "FSD" ? "col-span-full" : "lg:col-span-5"} flex flex-col gap-2 transition-all duration-300`}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  const next = viewMode === "FSD" ? "ALL" : "FSD";
-                  setViewMode(next);
-                  logEvent(
-                    next === "ALL"
-                      ? "Returned to All Panels."
-                      : "Expanded: Command Deck.",
-                  );
-                }}
-                className="flex items-center justify-between w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 font-semibold mb-2 cursor-pointer hover:bg-slate-850 hover:border-amber-600/50 transition-all group"
-              >
-                <div className="flex items-center gap-2">
-                  <Monitor size={14} className="text-amber-500" />
-                  <span>Command Deck</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-amber-600 font-bold">
-                  {viewMode === "FSD" ? (
-                    <>
-                      <Minimize2 size={12} />
-                      <span>Collapse</span>
-                    </>
-                  ) : (
-                    <>
-                      <Maximize2
-                        size={12}
-                        className="group-hover:scale-110 transition-transform"
-                      />
-                      <span>Expand</span>
-                    </>
-                  )}
-                </div>
-              </button>
+              <div className="flex items-center gap-2 px-1 py-1 text-sm text-slate-400 font-semibold mb-1">
+                <Monitor size={14} className="text-amber-500" />
+                <span>Command Deck</span>
+              </div>
               <FSDCommandCenter
                 occupants={occupants}
                 ledger={ledger}
@@ -716,37 +674,49 @@ export default function App() {
           onCancel={() => setShowSignOutDialog(false)}
         />
 
-        {/* System Audit Log */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
+        {/* System Audit Log — collapsed by default to keep the shell clean */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowAuditLog(!showAuditLog)}
+            aria-expanded={showAuditLog}
+            className="w-full flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-slate-850 transition-all"
+          >
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-sm font-bold text-slate-200 uppercase tracking-wide">
                 System Audit Log
               </span>
+              <span className="text-xs text-slate-500 font-mono">
+                {systemLogs.length} events
+              </span>
             </div>
-            <span className="text-xs text-slate-400 font-mono">
-              Live · Cryptographically Verified
+            <span className="text-xs text-amber-600 font-bold">
+              {showAuditLog ? "▲ Hide" : "▼ Show"}
             </span>
-          </div>
-          <div className="bg-slate-950 rounded-xl max-h-44 overflow-y-auto p-3 font-mono text-xs space-y-1.5 border border-slate-800">
-            {systemLogs.map((log, index) => (
-              <div key={index} className="flex gap-2.5 items-start">
-                <span className="text-amber-600 select-none shrink-0 mt-0.5">
-                  &rsaquo;
-                </span>
-                <span
-                  className={
-                    log.includes("WARNING")
-                      ? "text-red-600 font-bold"
-                      : "text-slate-300"
-                  }
-                >
-                  {log}
-                </span>
+          </button>
+          {showAuditLog && (
+            <div className="px-4 pb-4">
+              <div className="bg-slate-950 rounded-xl max-h-44 overflow-y-auto p-3 font-mono text-xs space-y-1.5 border border-slate-800">
+                {systemLogs.map((log, index) => (
+                  <div key={index} className="flex gap-2.5 items-start">
+                    <span className="text-amber-600 select-none shrink-0 mt-0.5">
+                      &rsaquo;
+                    </span>
+                    <span
+                      className={
+                        log.includes("WARNING")
+                          ? "text-red-600 font-bold"
+                          : "text-slate-300"
+                      }
+                    >
+                      {log}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       </main>
 
