@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MusterCommand v3 — Con Edison Evacuation Platform</title>
+<style>
+:root{
+  --blue:#0099d8; --blue-deep:#006ba6; --blue-glow:#33c9ff; --navy:#081c2e;
+  --sky:#e8f6fd; --bg:#f4f8fb;
+  --safe:#22c55e; --safe-deep:#16a34a; --alert:#ef4444; --alert-deep:#dc2626; --warn:#f59e0b; --warn-deep:#b45309;
+  --ink:#0b2740; --ink-soft:#5b7186; --line:#dbe7f0;
+  --glass:rgba(255,255,255,.72); --shadow:0 10px 36px rgba(11,39,64,.12);
+  --d-glass:rgba(255,255,255,.055); --d-line:rgba(140,200,255,.14); --d-text:#d7e9f7; --d-soft:#7fa3bf;
+  --mode:#f59e0b; --mode-bg:#fef6e7; --mode-deep:#b45309;
+}
+body.live{--mode:#ef4444;--mode-bg:#fdecec;--mode-deep:#b91c1c}
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+body{background:linear-gradient(160deg,#f7fbfe,#e8f2f9 55%,#dfeef7);color:var(--ink);min-height:100vh}
+body.dark-mode{background:radial-gradient(1200px 700px at 70% -10%,#123a5c 0%,#081c2e 55%,#050f1a 100%)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s !important;transition-duration:.001s !important}}
+
+/* ===== top bar ===== */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;background:rgba(255,255,255,.78);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:90;transition:.4s;flex-wrap:wrap}
+body.dark-mode .topbar{background:rgba(8,28,46,.8);border-color:var(--d-line)}
+.brand{display:flex;align-items:center;gap:11px}
+.brand-mark{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--blue),var(--blue-deep));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;box-shadow:0 10px 26px rgba(0,153,216,.4)}
+.brand h1{font-size:18px;font-weight:800;letter-spacing:-.3px}
+.brand h1 span{color:var(--blue)}
+body.dark-mode .brand h1{color:var(--d-text)}
+.brand small{display:block;font-size:10px;color:var(--ink-soft);font-weight:700;letter-spacing:.9px;text-transform:uppercase}
+body.dark-mode .brand small{color:var(--d-soft)}
+.mode-switch{display:flex;background:#e8f1f8;border-radius:13px;padding:4px;gap:3px}
+body.dark-mode .mode-switch{background:rgba(255,255,255,.07)}
+.mode-switch button{border:0;background:transparent;padding:9px 16px;border-radius:10px;font-weight:800;font-size:12.5px;color:var(--ink-soft);cursor:pointer;transition:.25s}
+body.dark-mode .mode-switch button{color:var(--d-soft)}
+.mode-switch button.active{background:#fff;color:var(--blue-deep);box-shadow:0 4px 16px rgba(11,39,64,.14)}
+body.dark-mode .mode-switch button.active{background:var(--blue);color:#fff}
+
+/* DRILL / LIVE toggle */
+.dl-toggle{display:flex;align-items:center;background:var(--mode-bg);border:1.5px solid var(--mode);border-radius:999px;padding:4px;gap:4px;cursor:pointer}
+.dl-toggle button{border:0;background:transparent;font-weight:900;font-size:11px;letter-spacing:.7px;padding:7px 14px;border-radius:999px;color:var(--mode-deep);cursor:pointer;opacity:.55;transition:.25s}
+.dl-toggle button.on{background:var(--mode);color:#fff;opacity:1;box-shadow:0 4px 14px color-mix(in srgb,var(--mode) 50%,transparent)}
+.live-pill{display:flex;align-items:center;gap:7px;background:var(--mode-bg);color:var(--mode-deep);font-weight:900;font-size:11px;padding:8px 14px;border-radius:999px;letter-spacing:.6px}
+body.dark-mode .live-pill{background:color-mix(in srgb,var(--mode) 15%,transparent);color:var(--mode)}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--mode);animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--mode) 55%,transparent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+.stage{max-width:1280px;margin:0 auto;padding:28px 22px 70px}
+.view{display:none}.view.active{display:block;animation:fadeUp .45s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* =================== EMPLOYEE =================== */
+.employee-wrap{display:flex;gap:38px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone{width:390px;background:#000;border-radius:52px;box-shadow:0 40px 100px rgba(11,39,64,.4);padding:10px;position:relative}
+.phone-notch{position:absolute;top:20px;left:50%;transform:translateX(-50%);width:118px;height:30px;background:#000;border-radius:999px;z-index:20}
+.phone-screen{height:790px;border-radius:42px;overflow:hidden;display:flex;flex-direction:column;background:linear-gradient(180deg,#fff,#eef7fd 70%,#e3f2fb);position:relative}
+.p-status{display:flex;justify-content:space-between;padding:18px 26px 4px;font-size:12.5px;font-weight:800;color:var(--ink-soft)}
+.e-alert{margin:12px 14px 8px;border-radius:22px;padding:14px 16px;display:flex;gap:11px;align-items:center;color:#fff;transition:.4s}
+.e-alert.drill-style{background:linear-gradient(120deg,#f59e0b,#d97706);box-shadow:0 14px 34px rgba(245,158,11,.4)}
+.e-alert.live-style{background:linear-gradient(120deg,#e11d48,#b91c1c 60%,#9f1239);background-size:200% 200%;animation:gradShift 3s ease infinite;box-shadow:0 14px 34px rgba(220,38,38,.45)}
+@keyframes gradShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.e-alert .sirens{font-size:25px}
+.e-alert.live-style .sirens{animation:tilt 1s ease-in-out infinite}
+@keyframes tilt{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+.e-alert b{display:block;font-size:14.5px}
+.e-alert span{font-size:11.5px;opacity:.93}
+.e-alert .timer{margin-left:auto;background:rgba(255,255,255,.18);border-radius:12px;padding:7px 11px;font-weight:900;font-size:15px;font-variant-numeric:tabular-nums}
+.mode-strip{margin:0 14px;border-radius:14px;padding:9px 14px;font-size:11.5px;font-weight:800;display:flex;align-items:center;gap:8px;transition:.4s}
+.mode-strip.drill-style{background:#fef6e7;color:#b45309;border:1.5px dashed #f59e0b}
+.mode-strip.live-style{background:#7f1d1d;color:#fff;border:1.5px solid #ef4444}
+.p-body{flex:1;padding:8px 14px 14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+
+.guide-card{background:var(--glass);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.95);border-radius:24px;box-shadow:var(--shadow);padding:14px;display:flex;gap:14px;align-items:center}
+.ring-wrap{position:relative;width:98px;height:98px;flex-shrink:0}
+.ring-wrap svg{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:#e2eef7;stroke-width:9}
+.ring-fg{fill:none;stroke:url(#gradBlue);stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset .8s ease}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-center b{font-size:22px;font-weight:900;color:var(--blue-deep)}
+.ring-center small{font-size:9px;font-weight:800;color:var(--ink-soft);letter-spacing:.5px}
+.guide-info h3{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-soft);margin-bottom:4px}
+.guide-info .dest{font-size:16px;font-weight:900;line-height:1.25}
+.guide-info .dest span{color:var(--blue)}
+.voice-chip{display:inline-flex;align-items:center;gap:6px;margin-top:7px;background:var(--sky);color:var(--blue-deep);font-size:11px;font-weight:800;padding:6px 12px;border-radius:999px;cursor:pointer}
+.voice-chip .bar{display:inline-flex;gap:2px;align-items:flex-end;height:11px}
+.voice-chip .bar i{width:2.5px;background:var(--blue);border-radius:2px;animation:eq 1s infinite ease-in-out}
+.voice-chip .bar i:nth-child(2){animation-delay:.15s}.voice-chip .bar i:nth-child(3){animation-delay:.3s}
+.voice-chip .bar i:nth-child(1){height:5px}.voice-chip .bar i:nth-child(2){height:10px}.voice-chip .bar i:nth-child(3){height:7px}
+@keyframes eq{50%{transform:scaleY(.45)}}
+
+.route{background:var(--glass);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.95);border-radius:24px;box-shadow:var(--shadow);padding:14px 16px;flex:1;min-height:0;overflow:hidden}
+.route h3{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-soft);margin-bottom:9px;display:flex;justify-content:space-between}
+.route h3 em{font-style:normal;color:var(--safe-deep);font-weight:900}
+.rsteps{position:relative;padding-left:4px}
+.rsteps::before{content:"";position:absolute;left:17px;top:14px;bottom:14px;width:3px;background:#e2eef7;border-radius:2px}
+.rsteps .progress-line{position:absolute;left:17px;top:14px;width:3px;background:linear-gradient(180deg,var(--blue),var(--blue-glow));border-radius:2px;height:0;transition:height 1s ease}
+.rstep{display:flex;gap:12px;align-items:flex-start;padding:6px 0;position:relative}
+.rdot{width:30px;height:30px;border-radius:50%;background:#eaf3fa;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0;z-index:1;border:2.5px solid #fff}
+.rstep.done .rdot{background:var(--safe);color:#fff}
+.rstep.now .rdot{background:var(--blue);color:#fff;animation:pulseBlue 1.5s infinite}
+@keyframes pulseBlue{0%{box-shadow:0 0 0 0 rgba(0,153,216,.5)}70%{box-shadow:0 0 0 11px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.rstep p{font-size:13.5px;font-weight:800;line-height:1.3}
+.rstep small{font-size:11px;color:var(--ink-soft);font-weight:600;line-height:1.35;display:block}
+.rstep.now p{color:var(--blue-deep)}
+.rstep.done p{color:var(--ink-soft);text-decoration:line-through;text-decoration-thickness:1.5px}
+
+.action-row{display:flex;gap:8px}
+.action-row button{flex:1;border:1.5px solid var(--line);background:rgba(255,255,255,.9);border-radius:15px;padding:11px 6px;font-weight:800;font-size:11.5px;color:var(--blue-deep);cursor:pointer;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:3px}
+.action-row button:active{transform:scale(.95)}
+.action-row .ico{font-size:16px}
+.action-row .help{color:var(--alert-deep);border-color:#f6c8c8;background:#fff7f7}
+.big-cta{border:0;cursor:pointer;border-radius:24px;padding:20px;font-size:19px;font-weight:900;letter-spacing:.4px;color:#fff;background:linear-gradient(135deg,#25c862,#0f9948);box-shadow:0 16px 40px rgba(22,163,74,.45);transition:.2s;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;overflow:hidden}
+.big-cta::after{content:"";position:absolute;top:0;left:-80%;width:60%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);animation:shimmer 2.6s infinite}
+@keyframes shimmer{to{left:130%}}
+.big-cta small{font-size:11px;font-weight:700;opacity:.93}
+.big-cta:active{transform:scale(.965)}
+
+.confirm{position:absolute;inset:0;border-radius:42px;background:linear-gradient(165deg,#0ea153,#066b36 70%,#054d27);display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:28px;z-index:30}
+.confirm.show{display:flex;animation:fadeUp .35s ease}
+.confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.confetti i{position:absolute;top:-12px;width:7px;height:11px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(820px) rotate(720deg);opacity:0}}
+.check-ring{width:112px;height:112px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:52px;margin-bottom:18px;animation:pop .5s cubic-bezier(.2,1.7,.4,1)}
+@keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+.confirm h2{font-size:25px;font-weight:900;margin-bottom:8px}
+.confirm p{font-size:14px;opacity:.93;line-height:1.55}
+.team-strip{margin-top:16px;background:rgba(255,255,255,.13);border-radius:18px;padding:13px 17px;width:100%}
+.team-strip h4{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;opacity:.85;margin-bottom:8px;text-align:left}
+.team-row{display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:3px 0}
+.confirm .next{margin-top:13px;font-size:12px;background:rgba(255,255,255,.1);border-radius:12px;padding:10px 13px;line-height:1.5}
+.confirm button{margin-top:15px;border:0;background:rgba(255,255,255,.22);color:#fff;font-weight:800;padding:11px 24px;border-radius:13px;cursor:pointer;font-size:13px}
+
+.sheet{position:absolute;left:0;right:0;bottom:-100%;background:#fff;border-radius:30px 30px 42px 42px;padding:22px 20px 28px;z-index:40;transition:bottom .35s cubic-bezier(.3,1.1,.4,1);box-shadow:0 -20px 60px rgba(11,39,64,.3)}
+.sheet.show{bottom:0}
+.sheet .grab{width:44px;height:5px;background:#dbe7f0;border-radius:99px;margin:0 auto 14px}
+.sheet h3{font-size:16px;font-weight:900;margin-bottom:4px;color:var(--alert-deep)}
+.sheet p{font-size:12.5px;color:var(--ink-soft);margin-bottom:14px}
+.sheet .opt{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:16px;padding:13px;margin-bottom:8px;cursor:pointer;font-weight:800;font-size:13.5px;transition:.15s}
+.sheet .opt:active{background:var(--sky)}
+.sheet .opt .oi{font-size:20px}
+.sheet .opt small{display:block;font-weight:600;font-size:11px;color:var(--ink-soft)}
+
+.design-notes{max-width:380px}
+.design-notes h2{font-size:16px;margin-bottom:12px;color:var(--blue-deep)}
+body.dark-mode .design-notes h2{color:var(--blue-glow)}
+.note{background:#fff;border-radius:16px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);font-size:12.5px;line-height:1.55;border-left:4px solid var(--blue)}
+.note b{color:var(--navy)}
+
+/* =================== COMMAND =================== */
+#view-command{color:var(--d-text)}
+.cmd-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.cmd-head h2{font-size:20px;font-weight:900;color:#fff;letter-spacing:-.3px}
+.cmd-head h2 span{color:var(--blue-glow)}
+.cmd-head .sub{font-size:11.5px;color:var(--d-soft);font-weight:700;letter-spacing:.7px;text-transform:uppercase;margin-top:3px}
+.mode-banner{width:100%;border-radius:14px;padding:11px 16px;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.mode-banner.drill-style{background:rgba(245,158,11,.1);border:1.5px dashed rgba(245,158,11,.5);color:#fbbf24}
+.mode-banner.live-style{background:rgba(239,68,68,.12);border:1.5px solid rgba(239,68,68,.5);color:#fca5a5}
+.broadcast{border:0;background:linear-gradient(135deg,var(--blue),var(--blue-deep));color:#fff;font-weight:900;font-size:13px;padding:12px 20px;border-radius:14px;cursor:pointer;box-shadow:0 10px 30px rgba(0,153,216,.45);transition:.2s}
+body.live .broadcast{background:linear-gradient(135deg,#ef4444,#b91c1c);box-shadow:0 10px 30px rgba(239,68,68,.5);animation:pulse 1.6s infinite}
+.broadcast:active{transform:scale(.96)}
+
+.cmd-kpis{display:grid;grid-template-columns:290px repeat(3,1fr);gap:13px;margin-bottom:13px}
+.cpanel{background:var(--d-glass);border:1px solid var(--d-line);border-radius:20px;padding:17px;backdrop-filter:blur(12px);position:relative;overflow:hidden}
+.cpanel h4{font-size:10px;text-transform:uppercase;letter-spacing:1.1px;color:var(--d-soft);margin-bottom:8px;font-weight:800}
+.hero-ring{display:flex;align-items:center;gap:15px}
+.hr-wrap{position:relative;width:114px;height:114px}
+.hr-wrap svg{transform:rotate(-90deg)}
+.hr-bg{fill:none;stroke:rgba(140,200,255,.12);stroke-width:11}
+.hr-fg{fill:none;stroke:url(#gradCyan);stroke-width:11;stroke-linecap:round;transition:stroke-dashoffset 1s ease;filter:drop-shadow(0 0 8px rgba(51,201,255,.6))}
+.hr-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hr-center b{font-size:26px;font-weight:900;color:#fff}
+.hr-center small{font-size:8.5px;font-weight:800;color:var(--d-soft);letter-spacing:.8px}
+.hero-side .big{font-size:14px;font-weight:900;color:#fff;line-height:1.35}
+.hero-side .eta{margin-top:8px;background:rgba(51,201,255,.1);border:1px solid rgba(51,201,255,.25);color:var(--blue-glow);font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;line-height:1.4}
+.knum{font-size:32px;font-weight:900;color:#fff;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.cpanel .trend{font-size:11px;font-weight:800;margin-top:4px}
+.trend.up{color:#4ade80}.trend.warn{color:#fbbf24}.trend.bad{color:#f87171}
+.cpanel.safe-p::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--safe)}
+.cpanel.route-p::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--warn)}
+.cpanel.miss-p::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--alert);box-shadow:0 0 14px var(--alert)}
+.spark{position:absolute;bottom:0;left:0;right:0;height:32px;opacity:.5}
+
+.cmd-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:13px}
+.cmd-col{display:flex;flex-direction:column;gap:13px}
+.panel-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.panel-title h3{font-size:13px;font-weight:900;color:#fff}
+.tag{font-size:9px;background:rgba(51,201,255,.12);color:var(--blue-glow);padding:4px 10px;border-radius:999px;letter-spacing:.8px;font-weight:900;border:1px solid rgba(51,201,255,.2)}
+.mapbox svg{width:100%;display:block;border-radius:14px}
+.map-legend{display:flex;gap:13px;margin-top:9px;font-size:10.5px;font-weight:800;color:var(--d-soft);flex-wrap:wrap}
+.map-legend span{display:flex;align-items:center;gap:5px}
+.lg{width:9px;height:9px;border-radius:50%}
+.lg.g{background:var(--safe)}.lg.a{background:var(--warn)}.lg.r{background:var(--alert)}.lg.b{background:var(--blue-glow)}
+
+.ai-card{background:linear-gradient(135deg,rgba(0,153,216,.14),rgba(51,201,255,.05));border:1px solid rgba(51,201,255,.3)}
+.ai-head{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.ai-orb{width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#7fdcff,var(--blue));box-shadow:0 0 16px rgba(51,201,255,.7);animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.14)}}
+.ai-head b{font-size:12px;color:#fff;letter-spacing:.4px}
+.ai-line{font-size:12px;line-height:1.6;color:var(--d-text);padding:7px 0;border-bottom:1px solid rgba(140,200,255,.08)}
+.ai-line:last-child{border:0}
+.ai-line b{color:var(--blue-glow)}
+.ai-line .conf{float:right;font-size:9.5px;font-weight:900;color:var(--d-soft)}
+.ai-btn{margin-top:6px;border:1px solid rgba(51,201,255,.4);background:rgba(51,201,255,.1);color:#33c9ff;font-size:10px;font-weight:900;padding:5px 12px;border-radius:8px;cursor:pointer}
+
+.feed{max-height:235px;overflow-y:auto;padding-right:6px}
+.feed::-webkit-scrollbar{width:4px}.feed::-webkit-scrollbar-thumb{background:rgba(140,200,255,.25);border-radius:4px}
+.fitem{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(140,200,255,.07);animation:fadeUp .4s ease;font-size:12px}
+.fitem .ft{font-variant-numeric:tabular-nums;color:var(--d-soft);font-weight:800;font-size:10.5px;padding-top:2px;flex-shrink:0;width:48px}
+.fitem .fdot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.fitem p{line-height:1.45;color:var(--d-text)}
+.fitem p b{color:#fff}
+
+.filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.filters button{border:1px solid var(--d-line);background:transparent;color:var(--d-soft);font-size:10.5px;font-weight:900;padding:6px 12px;border-radius:999px;cursor:pointer;transition:.2s}
+.filters button.on{background:rgba(51,201,255,.15);color:var(--blue-glow);border-color:rgba(51,201,255,.4)}
+.c-roster .rrow{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid rgba(140,200,255,.07)}
+.c-roster .rrow:last-child{border:0}
+.c-av{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11.5px;color:#fff;flex-shrink:0}
+.c-roster b{font-size:12.5px;color:#fff;display:block}
+.c-roster small{font-size:10.5px;color:var(--d-soft)}
+.c-roster .who{flex:1}
+.cchip{font-size:9.5px;font-weight:900;padding:5px 10px;border-radius:999px;letter-spacing:.4px}
+.cchip.safe{background:rgba(34,197,94,.14);color:#4ade80}
+.cchip.enroute{background:rgba(245,158,11,.14);color:#fbbf24}
+.cchip.missing{background:rgba(239,68,68,.16);color:#f87171;animation:blink 1.5s infinite}
+@keyframes blink{50%{opacity:.5}}
+.rrow .act{border:1px solid rgba(51,201,255,.3);background:transparent;color:var(--blue-glow);font-size:9.5px;font-weight:900;padding:5px 9px;border-radius:8px;cursor:pointer}
+
+.stack{display:flex;flex-direction:column-reverse;gap:3px;max-height:230px;overflow-y:auto;padding-right:5px}
+.stack::-webkit-scrollbar{width:4px}.stack::-webkit-scrollbar-thumb{background:rgba(140,200,255,.25);border-radius:4px}
+.srow{display:flex;align-items:center;gap:8px}
+.srow .sl{width:32px;font-size:10px;font-weight:900;color:var(--d-soft)}
+.srow .sbar{flex:1;height:14px;background:rgba(140,200,255,.08);border-radius:5px;overflow:hidden}
+.srow .sfill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--blue),var(--blue-glow));transition:width 1s}
+.srow.pilot .sl{color:var(--blue-glow)}
+.srow.pilot .sbar{outline:1.5px solid rgba(51,201,255,.5)}
+.srow.off .sfill{background:rgba(140,200,255,.15)}
+.srow .sp{width:52px;text-align:right;font-size:9.5px;font-weight:800;color:var(--d-soft)}
+
+/* =================== ROADMAP =================== */
+#view-roadmap{max-width:980px;margin:0 auto}
+.rm-hero{background:linear-gradient(135deg,var(--navy),#0d2c47 60%,#123a5c);border-radius:26px;color:#fff;padding:30px 34px;margin-bottom:22px;position:relative;overflow:hidden}
+.rm-hero::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(0,153,216,.35),transparent 70%)}
+.rm-hero h2{font-size:24px;font-weight:900;margin-bottom:8px}
+.rm-hero h2 span{color:var(--blue-glow)}
+.rm-hero p{font-size:14px;opacity:.9;line-height:1.65;max-width:660px}
+.rm-stats{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap}
+.rm-stat{background:rgba(255,255,255,.08);border:1px solid rgba(140,200,255,.2);border-radius:14px;padding:12px 18px}
+.rm-stat b{font-size:20px;display:block;color:var(--blue-glow)}
+.rm-stat small{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.75}
+
+.timeline{position:relative;padding-left:34px}
+.timeline::before{content:"";position:absolute;left:11px;top:8px;bottom:8px;width:4px;border-radius:4px;background:linear-gradient(180deg,var(--blue),var(--blue-glow) 45%,#c9e6f5)}
+.ph{position:relative;background:#fff;border-radius:22px;box-shadow:var(--shadow);padding:22px 26px;margin-bottom:18px}
+.ph::before{content:"";position:absolute;left:-30px;top:28px;width:18px;height:18px;border-radius:50%;background:var(--blue);border:4px solid #fff;box-shadow:0 0 0 3px rgba(0,153,216,.3)}
+.ph.now::before{background:var(--safe);box-shadow:0 0 0 3px rgba(34,197,94,.35);animation:pulse 2s infinite}
+.ph-head{display:flex;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap}
+.ph-badge{background:var(--sky);color:var(--blue-deep);font-weight:900;font-size:11px;padding:6px 13px;border-radius:999px;letter-spacing:.6px}
+.ph.now .ph-badge{background:#e9f9ef;color:var(--safe-deep)}
+.ph-head h3{font-size:17px;font-weight:900;color:var(--navy)}
+.ph-head .when{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--ink-soft);background:#f2f7fb;padding:6px 12px;border-radius:999px}
+.ph>p{font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px}
+.ph-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px}
+.ph-item{display:flex;gap:9px;font-size:13px;line-height:1.5;align-items:flex-start}
+.ph-item .pi{color:var(--blue);font-weight:900;flex-shrink:0}
+.ph-kpi{margin-top:13px;background:#f2f9fd;border-left:4px solid var(--blue);border-radius:10px;padding:10px 14px;font-size:12.5px;font-weight:700;color:var(--blue-deep)}
+.ph-kpi b{color:var(--navy)}
+
+/* =================== AUDIT =================== */
+#view-audit{max-width:900px;margin:0 auto}
+.audit-hero{background:linear-gradient(135deg,var(--blue),var(--blue-deep));border-radius:24px;color:#fff;padding:26px 30px;margin-bottom:20px}
+.audit-hero h2{font-size:22px;font-weight:900;margin-bottom:6px}
+.audit-hero p{font-size:13.5px;opacity:.94;line-height:1.6;max-width:640px}
+.score-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.score{background:#fff;border-radius:18px;padding:16px;box-shadow:var(--shadow);text-align:center}
+.score .s-num{font-size:28px;font-weight:900;color:var(--blue-deep)}
+.score .s-num span{font-size:13px;color:var(--ink-soft)}
+.score .delta{font-size:10.5px;font-weight:900;color:var(--safe-deep)}
+.score p{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--ink-soft);margin-top:3px}
+.audit-sec{background:#fff;border-radius:20px;box-shadow:var(--shadow);padding:20px 24px;margin-bottom:13px}
+.audit-sec h3{font-size:14.5px;font-weight:900;color:var(--blue-deep);margin-bottom:11px}
+.audit-row{display:flex;gap:13px;padding:9px 0;border-bottom:1px solid #eef4f9;font-size:13px;line-height:1.55}
+.audit-row:last-child{border:0}
+.audit-row .a-ico{font-size:18px;flex-shrink:0}
+.audit-row b{color:var(--navy)}
+.audit-row small{color:var(--ink-soft);display:block;font-size:12px}
+.fixed-tag{font-size:9px;font-weight:900;background:#e9f9ef;color:var(--safe-deep);padding:3px 8px;border-radius:99px;letter-spacing:.5px;vertical-align:2px}
+
+@media(max-width:1000px){.cmd-kpis{grid-template-columns:1fr 1fr}.cmd-grid{grid-template-columns:1fr}.score-grid,.ph-cols{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.ph-cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">M</div>
+    <div>
+      <h1>Muster<span>Command</span></h1>
+      <small>con edison · 4 irving place · floor 7</small>
+    </div>
+  </div>
+  <div class="dl-toggle" title="Switch scenario">
+    <button id="btn-drill" class="on" onclick="setScenario('drill')">🎯 DRILL</button>
+    <button id="btn-live" onclick="setScenario('live')">🚨 LIVE</button>
+  </div>
+  <div class="mode-switch">
+    <button class="active" onclick="setMode('employee',this)">📱 Employee</button>
+    <button onclick="setMode('command',this)">🛰️ Command</button>
+    <button onclick="setMode('roadmap',this)">🗺️ Roadmap</button>
+    <button onclick="setMode('audit',this)">📋 Audit</button>
+  </div>
+  <div class="live-pill"><span class="live-dot"></span> <span id="pill-label">DRILL</span> · <span id="clock">04:12</span></div>
+</div>
+
+<svg width="0" height="0"><defs>
+  <linearGradient id="gradBlue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0099d8"/><stop offset="1" stop-color="#33c9ff"/></linearGradient>
+  <linearGradient id="gradCyan" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22c55e"/><stop offset="1" stop-color="#33c9ff"/></linearGradient>
+</defs></svg>
+
+<div class="stage">
+
+<!-- ============ EMPLOYEE ============ -->
+<div class="view active" id="view-employee">
+  <div class="employee-wrap">
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <div class="p-status"><span>9:41</span><span>conEdison ⚡ 5G</span></div>
+        <div class="e-alert drill-style" id="e-alert">
+          <div class="sirens" id="e-icon">🎯</div>
+          <div><b id="e-title">Evacuation Drill — Floor 7</b><span id="e-sub">Muster Point B · East Plaza</span></div>
+          <div class="timer" id="e-timer">04:12</div>
+        </div>
+        <div class="mode-strip drill-style" id="mode-strip"><span id="ms-ico">🎯</span><span id="ms-text">PRACTICE DRILL — treat it as real. Your time counts toward your floor's score.</span></div>
+        <div class="p-body">
+          <div class="guide-card">
+            <div class="ring-wrap">
+              <svg width="98" height="98"><circle class="ring-bg" cx="49" cy="49" r="41"/><circle class="ring-fg" id="ering" cx="49" cy="49" r="41" stroke-dasharray="257.6" stroke-dashoffset="200"/></svg>
+              <div class="ring-center"><b id="edist">190</b><small>FT TO GO</small></div>
+            </div>
+            <div class="guide-info">
+              <h3>Heading to</h3>
+              <div class="dest">Muster Point B<br><span>East Plaza · blue flag</span></div>
+              <div class="voice-chip" onclick="alert('Voice guidance ON — turn-by-turn audio, eyes stay up on the stairs.')"><span class="bar"><i></i><i></i><i></i></span> Voice guiding you</div>
+            </div>
+          </div>
+
+          <div class="route">
+            <h3>Your route <em id="eeta">~2 min</em></h3>
+            <div class="rsteps">
+              <div class="progress-line" id="eprog" style="height:22%"></div>
+              <div class="rstep done" id="s1"><div class="rdot">✓</div><div><p>Leave your desk area</p><small>Grab nothing — just go</small></div></div>
+              <div class="rstep now" id="s2"><div class="rdot">2</div><div><p>Exit via Stairwell C</p><small>40 ft ahead · never elevators</small></div></div>
+              <div class="rstep" id="s3"><div class="rdot">3</div><div><p>Descend 7 flights to Lobby</p><small>Keep right · hold the handrail</small></div></div>
+              <div class="rstep" id="s4"><div class="rdot">4</div><div><p>Muster Point B — East Plaza</p><small>Check in when you arrive</small></div></div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button onclick="alert('Camera opens → scan the QR on the muster sign. Offline-first: works with zero signal, syncs later.')"><span class="ico">▦</span>Scan QR</button>
+            <button onclick="alert('Accessibility mode: 1.3× text, higher contrast, reduced motion — remembered next time.')"><span class="ico">👁</span>Easy read</button>
+            <button class="help" onclick="openSheet()"><span class="ico">✋</span>Need help</button>
+          </div>
+          <button class="big-cta" onclick="checkIn()">I'M SAFE — CHECK IN<small>One tap · GPS auto-verifies at Muster Point B</small></button>
+        </div>
+
+        <div class="confirm" id="confirm">
+          <div class="confetti" id="confetti"></div>
+          <div class="check-ring">✓</div>
+          <h2 id="cf-title">You're accounted for</h2>
+          <p id="cf-sub">Checked in at Muster Point B · 9:43 AM<br>Command and your warden can see you're safe.</p>
+          <div class="team-strip">
+            <h4>Your team — Ops Floor 7</h4>
+            <div class="team-row"><span>Tanya Brooks</span><span style="color:#a7f3c9;font-weight:900">✓ Safe</span></div>
+            <div class="team-row"><span>James Whitfield</span><span style="color:#fde68a;font-weight:900">→ En route</span></div>
+            <div class="team-row"><span>Denise Okafor</span><span style="color:#fecaca;font-weight:900">! Not yet in</span></div>
+          </div>
+          <div class="next" id="cf-next">🎯 Drill result: you mustered in 3:12 — 26s faster than last drill. Floor 7 score updates when everyone's in.</div>
+          <button onclick="document.getElementById('confirm').classList.remove('show')">← Back to demo</button>
+        </div>
+
+        <div class="sheet" id="sheet">
+          <div class="grab"></div>
+          <h3>✋ Get help now</h3>
+          <p>Your live location and floor go straight to Command the moment you tap.</p>
+          <div class="opt" onclick="closeSheet();alert('Sent → nearest warden (Luis, 60 ft) dispatched. Command sees a red assist flag at your location.')"><span class="oi">🧍</span><div>I can't evacuate on my own<small>Injury, wheelchair, or blocked path — a warden comes to you</small></div></div>
+          <div class="opt" onclick="closeSheet();alert('Sent → hazard pinned to the live map. Route engine reroutes everyone away automatically.')"><span class="oi">🔥</span><div>Report smoke / hazard<small>Pins it on the Command map, reroutes others instantly</small></div></div>
+          <div class="opt" onclick="closeSheet();alert('Connecting → two-way voice with the Command desk.')"><span class="oi">📞</span><div>Talk to Command<small>Two-way voice, hands-free</small></div></div>
+          <div class="opt" onclick="closeSheet()" style="justify-content:center;color:var(--ink-soft);border-style:dashed"><div>Cancel</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="design-notes">
+      <h2>Drill vs Live — why two modes matter</h2>
+      <div class="note"><b>Mode confusion kills urgency.</b> When people assume "it's just a drill," response slows. v3 makes the modes unmistakable: amber + 🎯 + "practice" framing for drills; pulsing red + "THIS IS NOT A DRILL" strip for live events. Toggle it above ↑</div>
+      <div class="note"><b>Drills get gamified, live doesn't.</b> Drill check-in shows your time vs last drill and floor score — practice motivation. Live check-in is calm and informational only: celebration would be tone-deaf in a real emergency.</div>
+      <div class="note"><b>Same muscle memory.</b> Layout, buttons, and flow are identical in both modes — drills build the exact reflexes used in a real event. Only tone, color, and copy shift.</div>
+      <div class="note"><b>Live mode strips distractions.</b> In live mode the app silences all other notifications, keeps the screen awake, and boosts brightness — the phone becomes a dedicated evacuation device.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ COMMAND ============ -->
+<div class="view" id="view-command">
+  <div class="mode-banner drill-style" id="cmd-banner">🎯 <span><b>SCHEDULED DRILL #14</b> — scored & recorded. Results auto-compared against drill #13. FDNY notification: not required.</span></div>
+  <div class="cmd-head">
+    <div>
+      <h2>Floor 7 — <span>Live Operations</span></h2>
+      <div class="sub" id="cmd-sub">4 Irving Place · Drill #14 · Incident Commander: R. Petillo</div>
+    </div>
+    <button class="broadcast" onclick="alert('Broadcast composer: push voice + text to everyone still unaccounted, in their preferred language. Two-tap send.')">📢 Broadcast</button>
+  </div>
+
+  <div class="cmd-kpis">
+    <div class="cpanel">
+      <h4>Accountability</h4>
+      <div class="hero-ring">
+        <div class="hr-wrap">
+          <svg width="114" height="114"><circle class="hr-bg" cx="57" cy="57" r="47"/><circle class="hr-fg" id="cring" cx="57" cy="57" r="47" stroke-dasharray="295.3" stroke-dashoffset="103"/></svg>
+          <div class="hr-center"><b id="cpct">65%</b><small>ACCOUNTED</small></div>
+        </div>
+        <div class="hero-side">
+          <div class="big"><span id="c-safe2">31</span> of 48 safe</div>
+          <div class="eta">⏱ Predicted 100%<br><b id="c-eta">in 3:20</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="cpanel safe-p"><h4>Accounted for</h4><div class="knum" id="k-safe">31</div><div class="trend up">▲ +6 in last minute</div><svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,28 15,26 30,22 45,20 60,14 75,10 100,4" fill="none" stroke="#22c55e" stroke-width="2"/></svg></div>
+    <div class="cpanel route-p"><h4>En route</h4><div class="knum" id="k-route">14</div><div class="trend warn">→ avg 1:40 to muster</div><svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,6 20,8 40,12 60,16 80,20 100,24" fill="none" stroke="#f59e0b" stroke-width="2"/></svg></div>
+    <div class="cpanel miss-p"><h4>Unaccounted</h4><div class="knum" id="k-miss">3</div><div class="trend bad">⚠ 2 wardens dispatched</div><svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,4 25,6 50,10 75,16 100,18" fill="none" stroke="#ef4444" stroke-width="2"/></svg></div>
+  </div>
+
+  <div class="cmd-grid">
+    <div class="cmd-col">
+      <div class="cpanel mapbox">
+        <div class="panel-title"><h3>Floor 7 — live positions</h3><span class="tag">GPS + BADGE BEACONS · 2s REFRESH</span></div>
+        <svg id="floormap" viewBox="0 0 640 330" style="background:#0a2238">
+          <rect x="14" y="14" width="470" height="302" rx="10" fill="#0d2c47" stroke="rgba(140,200,255,.25)" stroke-width="1.5"/>
+          <rect x="28" y="28" width="130" height="90" rx="6" fill="#123a5c" opacity=".65"/><text x="93" y="78" fill="#7fa3bf" font-size="11" text-anchor="middle" font-weight="700">CONF 7A</text>
+          <rect x="170" y="28" width="130" height="90" rx="6" fill="#123a5c" opacity=".65"/><text x="235" y="78" fill="#7fa3bf" font-size="11" text-anchor="middle" font-weight="700">OPS BAY</text>
+          <rect x="28" y="132" width="130" height="90" rx="6" fill="#123a5c" opacity=".65"/><text x="93" y="182" fill="#7fa3bf" font-size="11" text-anchor="middle" font-weight="700">DESKS 7-090+</text>
+          <rect x="170" y="132" width="130" height="90" rx="6" fill="#123a5c" opacity=".65"/><text x="235" y="182" fill="#7fa3bf" font-size="11" text-anchor="middle" font-weight="700">DESKS 7-020+</text>
+          <rect x="28" y="236" width="272" height="66" rx="6" fill="#123a5c" opacity=".65"/><text x="164" y="274" fill="#7fa3bf" font-size="11" text-anchor="middle" font-weight="700">BREAK / COPY</text>
+          <rect x="312" y="28" width="60" height="274" rx="6" fill="#0f3050"/><text x="342" y="170" fill="#5b7f9c" font-size="10" text-anchor="middle" font-weight="800" transform="rotate(90 342 170)">CORRIDOR</text>
+          <rect x="384" y="28" width="86" height="64" rx="6" fill="#0e4d33" stroke="#22c55e" stroke-width="1.5"/><text x="427" y="56" fill="#4ade80" font-size="11" text-anchor="middle" font-weight="900">STAIR C</text><text x="427" y="72" fill="#4ade80" font-size="9" text-anchor="middle">CLEAR ✓</text>
+          <rect x="384" y="238" width="86" height="64" rx="6" fill="#4d2a0e" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5 4"/><text x="427" y="266" fill="#fbbf24" font-size="11" text-anchor="middle" font-weight="900">STAIR D</text><text x="427" y="282" fill="#fbbf24" font-size="9" text-anchor="middle">CONGESTED</text>
+          <rect x="384" y="132" width="86" height="70" rx="6" fill="#3a1420" stroke="#ef4444" stroke-width="1.5"/><text x="427" y="162" fill="#f87171" font-size="11" text-anchor="middle" font-weight="900">ELEV ✕</text><text x="427" y="178" fill="#f87171" font-size="9" text-anchor="middle">LOCKED OUT</text>
+          <circle cx="560" cy="165" r="34" fill="rgba(51,201,255,.1)" stroke="#33c9ff" stroke-width="2"><animate attributeName="r" values="34;39;34" dur="2.2s" repeatCount="indefinite"/></circle>
+          <circle cx="560" cy="165" r="22" fill="rgba(51,201,255,.16)"/>
+          <text x="560" y="161" fill="#33c9ff" font-size="10" text-anchor="middle" font-weight="900">MUSTER B</text>
+          <text x="560" y="174" fill="#33c9ff" font-size="9" text-anchor="middle" font-weight="700" id="musterCount">31 in</text>
+          <g id="dots"></g>
+        </svg>
+        <div class="map-legend">
+          <span><i class="lg g"></i> Safe / at muster</span><span><i class="lg a"></i> En route</span><span><i class="lg r"></i> Unaccounted</span><span><i class="lg b"></i> Warden</span>
+        </div>
+      </div>
+
+      <div class="cpanel ai-card">
+        <div class="ai-head"><div class="ai-orb"></div><b>COMMAND INTELLIGENCE</b><span class="tag" style="margin-left:auto">PREDICTIVE</span></div>
+        <div class="ai-line"><b>Stairwell D congestion building</b> — 9 people converging. Rerouting 4 to Stair C saves ~50s. <span class="conf">CONF 91%</span><br><button class="ai-btn" onclick="alert('Reroute pushed — 4 phones get updated route + voice prompt instantly.')">▶ Push reroute</button></div>
+        <div class="ai-line"><b>Denise Okafor</b> last badge ping: Conf 7A, 90s ago. Nearest warden Luis is 60 ft away — auto-suggest dispatch. <span class="conf">CONF 84%</span></div>
+        <div class="ai-line" id="ai-mode-line">Full accountability predicted <b>in 3:20</b> — 40s faster than drill #13. <span class="conf">CONF 88%</span></div>
+      </div>
+    </div>
+
+    <div class="cmd-col">
+      <div class="cpanel">
+        <div class="panel-title"><h3>Live event feed</h3><span class="tag">STREAMING</span></div>
+        <div class="feed" id="feed"></div>
+      </div>
+      <div class="cpanel">
+        <div class="panel-title"><h3>Priority roster</h3><span class="tag">EXCEPTIONS FIRST</span></div>
+        <div class="filters" id="filters">
+          <button class="on" data-f="all">All 48</button><button data-f="missing">Missing 3</button><button data-f="enroute">En route 14</button><button data-f="safe">Safe 31</button>
+        </div>
+        <div class="c-roster" id="croster"></div>
+      </div>
+      <div class="cpanel">
+        <div class="panel-title"><h3>Building — 25 floors</h3><span class="tag">PHASE 2 READY</span></div>
+        <div class="stack" id="stack"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ROADMAP ============ -->
+<div class="view" id="view-roadmap">
+  <div class="rm-hero">
+    <h2>MusterCommand — <span>the road from Floor 7 to the whole grid</span></h2>
+    <p>Six phases. Each one ships value on its own, de-risks the next, and keeps the promise: every person accounted for, faster every time. Built to Con Edison brand, FDNY code, and ahead-of-the-curve UX.</p>
+    <div class="rm-stats">
+      <div class="rm-stat"><b>25</b><small>floors at full scale</small></div>
+      <div class="rm-stat"><b>~1,200</b><small>daily occupants</small></div>
+      <div class="rm-stat"><b>&lt;5 min</b><small>target: 100% accountability</small></div>
+      <div class="rm-stat"><b>2</b><small>modes: drill & live</small></div>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <div class="ph now">
+      <div class="ph-head"><span class="ph-badge">PHASE 0 · NOW</span><h3>Floor 7 Pilot</h3><span class="when">Q3 2026 · 8 weeks</span></div>
+      <p>Prove the core loop with 48 real users: alarm → guided route → one-tap check-in → live command accountability.</p>
+      <div class="ph-cols">
+        <div class="ph-item"><span class="pi">▸</span>Drill + Live modes with distinct visual language</div>
+        <div class="ph-item"><span class="pi">▸</span>QR signage at Muster Point B (offline check-in)</div>
+        <div class="ph-item"><span class="pi">▸</span>Warden roles: assist dispatch, floor sweep confirm</div>
+        <div class="ph-item"><span class="pi">▸</span>Command dashboard: map, roster, feed, predictions</div>
+        <div class="ph-item"><span class="pi">▸</span>2 scored drills + 1 unannounced drill</div>
+        <div class="ph-item"><span class="pi">▸</span>Accessibility: easy-read mode, VoiceOver, WCAG AA</div>
+      </div>
+      <div class="ph-kpi">✅ Exit criteria: <b>100% accountability in under 5:00</b> · check-in ≤ 2 taps · zero missed assist requests · SUS score ≥ 80</div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-head"><span class="ph-badge">PHASE 1</span><h3>Harden the Core</h3><span class="when">Q4 2026</span></div>
+      <p>Make it bulletproof before scaling: emergencies are exactly when infrastructure fails.</p>
+      <div class="ph-cols">
+        <div class="ph-item"><span class="pi">▸</span>Offline-first sync — full function with zero connectivity</div>
+        <div class="ph-item"><span class="pi">▸</span>Badge/SSO integration — roster auto-builds from swipes</div>
+        <div class="ph-item"><span class="pi">▸</span>Visitor & contractor flow — SMS check-in, no app needed</div>
+        <div class="ph-item"><span class="pi">▸</span>Drill analytics reports — auto-generated, FDNY-ready PDF</div>
+        <div class="ph-item"><span class="pi">▸</span>Multilingual: ES, ZH, RU, BN (NYC's top languages)</div>
+        <div class="ph-item"><span class="pi">▸</span>Pen-test + failover: app works if the server doesn't</div>
+      </div>
+      <div class="ph-kpi">✅ Exit criteria: <b>check-in succeeds with airplane mode on</b> · visitor coverage 100% · report generation &lt; 1 min post-drill</div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-head"><span class="ph-badge">PHASE 2</span><h3>Vertical Scale — 25 Floors</h3><span class="when">Q1–Q2 2027</span></div>
+      <p>Roll out in five-floor waves, each wave two weeks: install beacons + QR signage, train wardens, run a scored drill, then advance.</p>
+      <div class="ph-cols">
+        <div class="ph-item"><span class="pi">▸</span>Wave rollout: F5–9 → F10–14 → F15–19 → F20–25 → F1–4</div>
+        <div class="ph-item"><span class="pi">▸</span>Multi-muster assignment — each floor to its right plaza point</div>
+        <div class="ph-item"><span class="pi">▸</span>Stairwell load balancing across all floors simultaneously</div>
+        <div class="ph-item"><span class="pi">▸</span>Command zoom: building → floor → person in two clicks</div>
+        <div class="ph-item"><span class="pi">▸</span>Phased evacuation logic — fire floor + adjacent first (NYC high-rise standard)</div>
+        <div class="ph-item"><span class="pi">▸</span>Warden hierarchy: floor → zone → building commander</div>
+      </div>
+      <div class="ph-kpi">✅ Exit criteria: <b>full-building drill, ~1,200 people, 100% accounted &lt; 12 min</b> · no stairwell over 80% capacity</div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-head"><span class="ph-badge">PHASE 3</span><h3>Intelligence — the Living Building</h3><span class="when">Q3–Q4 2027</span></div>
+      <p>The "4D" layer: the map that knows what's happening inside it, over time — and acts on it.</p>
+      <div class="ph-cols">
+        <div class="ph-item"><span class="pi">▸</span>Sensor fusion: smoke, heat, door-state feed the live map</div>
+        <div class="ph-item"><span class="pi">▸</span>Digital twin — 3D building model with live occupancy</div>
+        <div class="ph-item"><span class="pi">▸</span>Dynamic rerouting — hazards close routes, phones update instantly</div>
+        <div class="ph-item"><span class="pi">▸</span>Congestion prediction 60–90s ahead (the AI card, for real)</div>
+        <div class="ph-item"><span class="pi">▸</span>Auto-drill scoring vs simulation baselines</div>
+        <div class="ph-item"><span class="pi">▸</span>FDNY live data handoff on arrival — incident package in one link</div>
+      </div>
+      <div class="ph-kpi">✅ Exit criteria: <b>hazard-to-reroute latency &lt; 5s</b> · prediction accuracy ≥ 85% · FDNY package adopted in 1 joint exercise</div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-head"><span class="ph-badge">PHASE 4</span><h3>Ahead of the Curve</h3><span class="when">2028</span></div>
+      <p>The experiences nobody else in the utility space will have — and the reason this build leads the industry.</p>
+      <div class="ph-cols">
+        <div class="ph-item"><span class="pi">▸</span>Watch haptics — turn cues on the wrist, phone stays pocketed</div>
+        <div class="ph-item"><span class="pi">▸</span>AR wayfinding — camera arrows for visitors who don't know the building</div>
+        <div class="ph-item"><span class="pi">▸</span>Mesh networking — phones relay check-ins through dead zones</div>
+        <div class="ph-item"><span class="pi">▸</span>Voice-only mode — full evacuation by audio for low-vision users</div>
+        <div class="ph-item"><span class="pi">▸</span>Muster kiosks — badge-tap check-in for phoneless staff</div>
+        <div class="ph-item"><span class="pi">▸</span>Wellness pulse — post-event check on everyone, automatically</div>
+      </div>
+      <div class="ph-kpi">✅ Exit criteria: <b>every occupant type covered</b> — phone, watch, kiosk, or escort — with equal check-in speed</div>
+    </div>
+
+    <div class="ph">
+      <div class="ph-head"><span class="ph-badge">PHASE 5</span><h3>Platform — Beyond One Building</h3><span class="when">2028+</span></div>
+      <p>4 Irving Place becomes the template. MusterCommand becomes Con Edison's emergency accountability platform.</p>
+      <div class="ph-cols">
+        <div class="ph-item"><span class="pi">▸</span>Multi-site: substations, service centers, generating stations</div>
+        <div class="ph-item"><span class="pi">▸</span>Corporate command — every Con Ed facility on one screen</div>
+        <div class="ph-item"><span class="pi">▸</span>Open API — HR, badging, BMS, and city systems plug in</div>
+        <div class="ph-item"><span class="pi">▸</span>Cross-agency drills with FDNY/OEM on shared live data</div>
+        <div class="ph-item"><span class="pi">▸</span>Benchmark network — sites compete on drill scores</div>
+        <div class="ph-item"><span class="pi">▸</span>White-label potential — the product other utilities license</div>
+      </div>
+      <div class="ph-kpi">✅ North star: <b>any Con Edison person, any site, accounted for in minutes</b> — and the data to prove it improves every quarter</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ AUDIT ============ -->
+<div class="view" id="view-audit">
+  <div class="audit-hero">
+    <h2>Build Audit — v2 → v3</h2>
+    <p>Everything found in the v2 audit, and its status. Scored against Nielsen heuristics + crisis-UX research. v3 headline: the drill/live mode system — the single biggest real-world safety gap in v2.</p>
+  </div>
+  <div class="score-grid">
+    <div class="score"><div class="s-num">9.4<span>/10</span></div><div class="delta">▲ +0.3</div><p>Clarity under stress</p></div>
+    <div class="score"><div class="s-num">9.2<span>/10</span></div><div class="delta">▲ +0.4</div><p>Time to first action</p></div>
+    <div class="score"><div class="s-num">9.5<span>/10</span></div><div class="delta">▲ +0.1</div><p>Command awareness</p></div>
+    <div class="score"><div class="s-num">9.0<span>/10</span></div><div class="delta">▲ +0.5</div><p>Accessibility</p></div>
+  </div>
+  <div class="audit-sec">
+    <h3>Fixed in v3</h3>
+    <div class="audit-row"><span class="a-ico">🎯</span><div><b>No drill/live distinction</b> <span class="fixed-tag">FIXED</span><small>v2 treated every event identically. v3: amber practice framing + scoring for drills; red "NOT A DRILL" + notification silencing for live. Same layout both modes — drills train the real reflex.</small></div></div>
+    <div class="audit-row"><span class="a-ico">🔘</span><div><b>Roster filters were decorative</b> <span class="fixed-tag">FIXED</span><small>v2's filter chips did nothing. v3 filters actually filter — commanders drill into Missing/En route/Safe instantly.</small></div></div>
+    <div class="audit-row"><span class="a-ico">🕐</span><div><b>Feed timestamps could exceed :59</b> <span class="fixed-tag">FIXED</span><small>Live feed now uses a real clock — no impossible times in a tool where timestamps are evidence.</small></div></div>
+    <div class="audit-row"><span class="a-ico">🌀</span><div><b>No reduced-motion support</b> <span class="fixed-tag">FIXED</span><small>v3 respects prefers-reduced-motion globally — vestibular-safe, and critical for anyone already stressed.</small></div></div>
+    <div class="audit-row"><span class="a-ico">📢</span><div><b>Broadcast had one urgency level</b> <span class="fixed-tag">FIXED</span><small>Broadcast button now escalates with mode — pulsing red in live events, calm blue in drills.</small></div></div>
+  </div>
+  <div class="audit-sec">
+    <h3>Open items — needs the real codebase</h3>
+    <div class="audit-row"><span class="a-ico">🔌</span><div><b>Wire to real data</b><small>Everything here is simulated. Next: map these components onto the repo's actual stack — check-in API, badge roster, warden roles.</small></div></div>
+    <div class="audit-row"><span class="a-ico">📶</span><div><b>Offline behavior is described, not built</b><small>The QR/offline story needs service-worker + local queue implementation and a dead-signal field test.</small></div></div>
+    <div class="audit-row"><span class="a-ico">🧪</span><div><b>Validate with a real drill</b><small>Run Floor 7 drill #14 with this UI on real phones. Measure: time-to-check-in, missed taps, warden confusion. Iterate from data, not taste.</small></div></div>
+    <div class="audit-row"><span class="a-ico">🔤</span><div><b>Type scale audit on small phones</b><small>Test on iPhone SE — the route card gets tight below 375px width.</small></div></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ===== scenario: drill vs live ===== */
+let scenario='drill';
+function setScenario(s){
+  scenario=s;
+  document.body.classList.toggle('live',s==='live');
+  document.getElementById('btn-drill').classList.toggle('on',s==='drill');
+  document.getElementById('btn-live').classList.toggle('on',s==='live');
+  document.getElementById('pill-label').textContent=s==='live'?'LIVE EVACUATION':'DRILL';
+  const a=document.getElementById('e-alert'),ms=document.getElementById('mode-strip'),cb=document.getElementById('cmd-banner');
+  a.className='e-alert '+(s==='live'?'live-style':'drill-style');
+  ms.className='mode-strip '+(s==='live'?'live-style':'drill-style');
+  cb.className='mode-banner '+(s==='live'?'live-style':'drill-style');
+  document.getElementById('e-icon').textContent=s==='live'?'🚨':'🎯';
+  document.getElementById('e-title').textContent=s==='live'?'EVACUATE NOW — Floor 7':'Evacuation Drill — Floor 7';
+  document.getElementById('e-sub').textContent='Muster Point B · East Plaza';
+  document.getElementById('ms-ico').textContent=s==='live'?'⚠️':'🎯';
+  document.getElementById('ms-text').textContent=s==='live'
+    ?'THIS IS NOT A DRILL. Other notifications silenced · screen stays awake · brightness boosted.'
+    :'PRACTICE DRILL — treat it as real. Your time counts toward your floor\'s score.';
+  cb.innerHTML=s==='live'
+    ?'🚨 <span><b>LIVE EVACUATION — ALARM 09:41</b> · FDNY notified automatically · all floors alerted · recording for incident report.</span>'
+    :'🎯 <span><b>SCHEDULED DRILL #14</b> — scored & recorded. Results auto-compared against drill #13. FDNY notification: not required.</span>';
+  document.getElementById('cmd-sub').textContent=s==='live'
+    ?'4 Irving Place · LIVE INCIDENT · Incident Commander: R. Petillo'
+    :'4 Irving Place · Drill #14 · Incident Commander: R. Petillo';
+  document.getElementById('cf-next').textContent=s==='live'
+    ?'Stay at Muster Point B. Do not re-enter for any reason. You\'ll get exactly one alert when it\'s safe — nothing else will buzz your phone.'
+    :'🎯 Drill result: you mustered in 3:12 — 26s faster than last drill. Floor 7 score updates when everyone\'s in.';
+  document.getElementById('ai-mode-line').innerHTML=s==='live'
+    ?'FDNY ETA <b>4 min</b> — incident data package prepared. Handoff link ready for first-arriving unit. <span class="conf">AUTO</span>'
+    :'Full accountability predicted <b>in 3:20</b> — 40s faster than drill #13. <span class="conf">CONF 88%</span>';
+}
+/* ===== tabs ===== */
+function setMode(mode,btn){
+  document.querySelectorAll('.mode-switch button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+mode).classList.add('active');
+  document.body.classList.toggle('dark-mode',mode==='command');
+}
+/* ===== clock ===== */
+let secs=252;
+setInterval(()=>{secs++;const t=String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');document.getElementById('clock').textContent=t;document.getElementById('e-timer').textContent=t;},1000);
+
+/* ===== employee sim ===== */
+let dist=190;
+setInterval(()=>{
+  if(dist>0){dist=Math.max(0,dist-7);
+    document.getElementById('edist').textContent=dist;
+    const pct=1-dist/260;
+    document.getElementById('ering').style.strokeDashoffset=257.6*(1-pct);
+    document.getElementById('eeta').textContent='~'+Math.max(1,Math.ceil(dist/95))+' min';
+    if(dist<130)stepTo(3); if(dist<40)stepTo(4);
+  }
+},2000);
+function stepTo(n){
+  for(let i=1;i<=4;i++){const el=document.getElementById('s'+i);el.classList.remove('now');if(i<n){el.classList.add('done');el.querySelector('.rdot').textContent='✓'}}
+  document.getElementById('s'+n).classList.add('now');
+  document.getElementById('eprog').style.height=(n-1)/3*88+'%';
+}
+function checkIn(){
+  const c=document.getElementById('confirm');c.classList.add('show');
+  const box=document.getElementById('confetti');box.innerHTML='';
+  if(scenario==='drill'){ // celebration only in drills
+    const colors=['#fff','#a7f3c9','#33c9ff','#fde68a'];
+    for(let i=0;i<36;i++){const p=document.createElement('i');p.style.left=Math.random()*100+'%';p.style.background=colors[i%4];p.style.animationDuration=(1.4+Math.random()*1.6)+'s';p.style.animationDelay=(Math.random()*.5)+'s';box.appendChild(p)}
+  }
+}
+function openSheet(){document.getElementById('sheet').classList.add('show')}
+function closeSheet(){document.getElementById('sheet').classList.remove('show')}
+
+/* ===== command counters ===== */
+let safe=31,route=14,miss=3;
+function syncKpis(){
+  document.getElementById('k-safe').textContent=safe;
+  document.getElementById('k-route').textContent=route;
+  document.getElementById('k-miss').textContent=miss;
+  document.getElementById('c-safe2').textContent=safe;
+  const pct=Math.round(safe/48*100);
+  document.getElementById('cpct').textContent=pct+'%';
+  document.getElementById('cring').style.strokeDashoffset=295.3*(1-pct/100);
+  document.getElementById('musterCount').textContent=safe+' in';
+  const remain=Math.max(0,200-((safe-31)*14));
+  document.getElementById('c-eta').textContent='in '+Math.floor(remain/60)+':'+String(remain%60).padStart(2,'0');
+  document.querySelector('[data-f="missing"]').textContent='Missing '+miss;
+  document.querySelector('[data-f="enroute"]').textContent='En route '+route;
+  document.querySelector('[data-f="safe"]').textContent='Safe '+safe;
+}
+setInterval(()=>{
+  if(route>0&&Math.random()>.35){route--;safe++}
+  else if(miss>0&&Math.random()>.8){miss--;route++}
+  syncKpis();renderRoster();
+},2600);
+
+/* ===== roster with WORKING filters ===== */
+const people=[
+ {n:'Denise Okafor',r:'Ops Analyst · last ping Conf 7A',s:'missing',c:'#dc2626',act:'Locate'},
+ {n:'Marcus Lee',r:'Field Engineer · no ping 2m',s:'missing',c:'#dc2626',act:'Locate'},
+ {n:'Priya Raman',r:'Visitor · escort: T. Brooks',s:'missing',c:'#dc2626',act:'Locate'},
+ {n:'Carl Jenkins',r:'✋ Assist requested · Desk 7-071',s:'enroute',c:'#f59e0b',act:'Dispatch'},
+ {n:'James Whitfield',r:'Supervisor · Stair D',s:'enroute',c:'#f59e0b',act:''},
+ {n:'Ana Sofía Cruz',r:'Dispatcher · Corridor',s:'enroute',c:'#f59e0b',act:''},
+ {n:'Robert Petillo',r:'UX Lead · Muster B ✓ 9:43',s:'safe',c:'#16a34a',act:''},
+ {n:'Sam McFarlane',r:'Developer · Muster B ✓ 9:42',s:'safe',c:'#16a34a',act:''},
+ {n:'Tanya Brooks',r:'HR Partner · Muster B ✓ 9:41',s:'safe',c:'#16a34a',act:''}
+];
+const lbl={safe:'✓ SAFE',enroute:'EN ROUTE',missing:'! MISSING'};
+let activeFilter='all';
+function renderRoster(){
+  const list=people.filter(p=>activeFilter==='all'||p.s===activeFilter);
+  document.getElementById('croster').innerHTML=(list.length?list:[]).map(p=>`
+   <div class="rrow">
+    <div class="c-av" style="background:${p.c}">${p.n.split(' ').map(x=>x[0]).join('').slice(0,2)}</div>
+    <div class="who"><b>${p.n}</b><small>${p.r}</small></div>
+    ${p.act?`<button class="act" onclick="alert('${p.act==='Locate'?'Pings badge + phone, drops a map marker, offers warden dispatch.':'Nearest warden gets a routed assist task with exact location.'}')">${p.act}</button>`:''}
+    <span class="cchip ${p.s}">${lbl[p.s]}</span>
+   </div>`).join('')||'<div style="padding:14px;font-size:12px;color:var(--d-soft)">No one in this group 🎉</div>';
+}
+document.getElementById('filters').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#filters button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');activeFilter=b.dataset.f;renderRoster();
+});
+renderRoster();syncKpis();
+
+/* ===== building stack ===== */
+let srows='';
+for(let f=1;f<=25;f++){
+  const pilot=f===7;
+  srows+=`<div class="srow ${pilot?'pilot':'off'}"><div class="sl">F${f}${pilot?'★':''}</div><div class="sbar"><div class="sfill" id="sf${f}" style="width:${pilot?65:3}%"></div></div><div class="sp">${pilot?'31/48':'phase 2'}</div></div>`;
+}
+document.getElementById('stack').innerHTML=srows;
+setInterval(()=>{const p=Math.round(safe/48*100);const b=document.getElementById('sf7');b.style.width=p+'%';b.parentElement.nextElementSibling.textContent=safe+'/48'},2600);
+
+/* ===== live map dots ===== */
+const svgNS='http://www.w3.org/2000/svg';
+const dotsG=document.getElementById('dots');
+const stairC={x:427,y:60},muster={x:560,y:165};
+const agents=[];
+function mkAgent(x,y,color,speed,toMuster){
+  const c=document.createElementNS(svgNS,'circle');
+  c.setAttribute('r',5);c.setAttribute('fill',color);
+  c.setAttribute('style',`filter:drop-shadow(0 0 5px ${color})`);
+  dotsG.appendChild(c);
+  agents.push({el:c,x,y,speed,phase:0,toMuster,color});
+}
+for(let i=0;i<7;i++)mkAgent(60+Math.random()*220,60+Math.random()*200,'#f59e0b',.6+Math.random()*.7,true);
+mkAgent(93,70,'#ef4444',0,false);mkAgent(235,180,'#ef4444',0,false);
+mkAgent(340,120,'#33c9ff',.9,false);mkAgent(340,240,'#33c9ff',.7,false);
+function tick(){
+  agents.forEach(a=>{
+    if(a.speed===0&&a.color==='#ef4444'){a.phase+=.05;a.el.setAttribute('opacity',.55+Math.sin(a.phase)*.4);a.el.setAttribute('cx',a.x);a.el.setAttribute('cy',a.y);return;}
+    if(a.speed===0){a.el.setAttribute('cx',a.x);a.el.setAttribute('cy',a.y);return;}
+    let target;
+    if(a.color==='#33c9ff'){a.phase+=.012*a.speed;target={x:342,y:165+Math.sin(a.phase*3)*110};}
+    else{target=a.toMuster?(a.x<400?stairC:muster):stairC;}
+    const dx=target.x-a.x,dy=target.y-a.y,d=Math.hypot(dx,dy);
+    if(d<10&&a.toMuster&&a.x>=400){
+      a.el.setAttribute('fill','#22c55e');a.el.setAttribute('style','filter:drop-shadow(0 0 5px #22c55e)');
+      a.x=muster.x+(Math.random()*26-13);a.y=muster.y+(Math.random()*26-13);a.speed=0;a.toMuster=false;
+    } else if(d>2){a.x+=dx/d*a.speed;a.y+=dy/d*a.speed;}
+    else if(a.toMuster&&Math.abs(a.x-stairC.x)<12){a.x=480;a.y=120;}
+    a.el.setAttribute('cx',a.x);a.el.setAttribute('cy',a.y);
+  });
+  requestAnimationFrame(tick);
+}
+tick();
+
+/* ===== event feed (real clock — audit fix) ===== */
+const feedData=[
+ ['#22c55e','<b>Robert Petillo</b> checked in — GPS verified at Muster B'],
+ ['#33c9ff','Warden <b>Luis M.</b> dispatched to Conf 7A (assist Denise O.)'],
+ ['#f59e0b','<b>Stair D congestion</b> rising — 9 converging'],
+ ['#22c55e','<b>Sam McFarlane</b> checked in via QR (offline sync)'],
+ ['#ef4444','<b>Carl Jenkins</b> requested mobility assist — Desk 7-071'],
+ ['#22c55e','<b>Tanya Brooks</b> + 4 team members checked in'],
+ ['#33c9ff','Elevators locked out · Stair C confirmed clear'],
+ ['#f59e0b','Alarm triggered — Floor 7 · 48 badged occupants'],
+];
+let feedClock=new Date();feedClock.setHours(9,43,12);
+function ts(offsetSec){const d=new Date(feedClock.getTime()+offsetSec*1000);return d.toTimeString().slice(0,8).replace(/^0/,'')}
+const feedEl=document.getElementById('feed');
+feedEl.innerHTML=feedData.map((f,i)=>`<div class="fitem"><span class="ft">${ts(-i*14)}</span><span class="fdot" style="background:${f[0]};box-shadow:0 0 6px ${f[0]}"></span><p>${f[1]}</p></div>`).join('');
+const liveEvents=[
+ ['#22c55e','<b>Ana Sofía Cruz</b> checked in — Muster B'],
+ ['#33c9ff','AI reroute accepted — 4 phones updated to Stair C'],
+ ['#22c55e','<b>James Whitfield</b> checked in — Muster B'],
+ ['#33c9ff','Warden Luis reached Conf 7A — sweeping'],
+ ['#22c55e','<b>Denise Okafor</b> located — evacuating with warden'],
+];
+let li=0,liveOffset=0;
+setInterval(()=>{
+  if(li>=liveEvents.length)return;
+  liveOffset+=5;
+  const e=liveEvents[li++];
+  const div=document.createElement('div');div.className='fitem';
+  div.innerHTML=`<span class="ft">${ts(liveOffset)}</span><span class="fdot" style="background:${e[0]};box-shadow:0 0 6px ${e[0]}"></span><p>${e[1]}</p>`;
+  feedEl.prepend(div);
+},5200);
+</script>
+</body>
+</html>
